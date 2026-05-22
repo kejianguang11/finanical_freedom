@@ -1,0 +1,431 @@
+-- Merging decision tree log ---
+provider#androidx.core.content.FileProvider
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:13:9-21:20
+	android:grantUriPermissions
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:17:13-47
+	android:authorities
+		INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:15:13-64
+	android:exported
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:16:13-37
+	android:name
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:14:13-62
+manifest
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:2:1-33:12
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:2:1-33:12
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:2:1-33:12
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:2:1-33:12
+MERGED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:17:1-31:12
+MERGED from [androidx.room:room-ktx:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/4ae539c1e4218e9f8019feaefa590414/transformed/room-ktx-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.hilt:hilt-navigation-compose:1.2.0] /Users/maofeifei/.gradle/caches/transforms-4/9622a8413d1adce95812c61458361367/transformed/hilt-navigation-compose-1.2.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.hilt:hilt-navigation:1.2.0] /Users/maofeifei/.gradle/caches/transforms-4/a47f6bd305b306b5dcc7e4cec57b1164/transformed/hilt-navigation-1.2.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.navigation:navigation-common:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/1bc118490781fab7a8e8046593ee7afc/transformed/navigation-common-2.8.5/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.navigation:navigation-runtime:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/4fe8833d16cf2d76c3290e0c3b8a0c94/transformed/navigation-runtime-2.8.5/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.navigation:navigation-common-ktx:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/8198a925a092087d67a2eaeff6172200/transformed/navigation-common-ktx-2.8.5/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.navigation:navigation-runtime-ktx:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/107f9d33b6395f10f58b5e1fa3cc3f46/transformed/navigation-runtime-ktx-2.8.5/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.navigation:navigation-compose:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/9fe6b20a613c1dd6e97f66c73b49ef6b/transformed/navigation-compose-2.8.5/AndroidManifest.xml:2:1-7:12
+MERGED from [com.patrykandpatrick.vico:compose-m3:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/2587f24e575993d940520da8341e5919/transformed/compose-m3-2.0.0-beta.2/AndroidManifest.xml:2:1-7:12
+MERGED from [com.patrykandpatrick.vico:compose:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/73ef3bfb2a777a285ab0cc4eea66b78f/transformed/compose-2.0.0-beta.2/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /Users/maofeifei/.gradle/caches/transforms-4/5693ec986b2a31f707dd653c9af2f9ec/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.appcompat:appcompat:1.7.0] /Users/maofeifei/.gradle/caches/transforms-4/1fc14c131901b9d514b5c86819541598/transformed/appcompat-1.7.0/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.dagger:hilt-android:2.51.1] /Users/maofeifei/.gradle/caches/transforms-4/fe643c6e05fbd23514a6bd897d5af0da/transformed/hilt-android-2.51.1/AndroidManifest.xml:16:1-19:12
+MERGED from [androidx.fragment:fragment:1.5.4] /Users/maofeifei/.gradle/caches/transforms-4/f4877a8c3d8cdef8789824a3b44c70e2/transformed/fragment-1.5.4/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.activity:activity:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/5e025412bcf00b2c6b7f41496475cdc2/transformed/activity-1.9.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material3:material3-android:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/f0db4a63dcaeb430de0af039829b70c9/transformed/material3-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material:material-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/b1ab25407c1ed67430a0bfa14a1e8c5e/transformed/material-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-core-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/bf71d18fe796b3d12e9613e2b2ba4f6b/transformed/animation-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-ripple-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/73656b9b2f019373c20e96ccd5a665f0/transformed/material-ripple-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/c25a0ea86006d06c609b258000484520/transformed/foundation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/c273b9333af7c2ffb82c7bb5936a0333/transformed/ui-tooling-data-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-text-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/67ec38ee4a89be6cad443f5d1b00a15c/transformed/ui-text-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/e490d87a245ef67ca3ed3898f7bc6a71/transformed/ui-geometry-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-util-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/ec675cb6db14f6d56ad722313f4bbba0/transformed/ui-util-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/816fa254c451020c0379e333fb82abef/transformed/ui-unit-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/1ac4c1089de1ba01921928b416fbe438/transformed/ui-tooling-preview-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/0b972cd203c6942e1bcc3f5978cdbaa1/transformed/ui-graphics-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:17:1-28:12
+MERGED from [androidx.compose.animation:animation-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/85c25614c6bc8c2670fac66a0caba61a/transformed/animation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/bd95a9efcd7763893c8478973a15305d/transformed/foundation-layout-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/27cceaa41271d81144d75e57ec3f1869/transformed/material-icons-extended-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/912f3aa6df86d2a9c3e4d783449d6a23/transformed/material-icons-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/45534fa807bb627d4f3a45c5b88275ad/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/7c42b90f97ff535deca36b985c2cd811/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:17:1-23:12
+MERGED from [androidx.core:core-ktx:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/74a882ede820a040c57bdc801404946f/transformed/core-ktx-1.13.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/eb98774fcf46bb3553c08d6fd8a8233c/transformed/autofill-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/maofeifei/.gradle/caches/transforms-4/7baa2ddbd26d584e2e6a15d5184f55ed/transformed/graphics-path-1.0.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/5d411f69df50b13efe6c3b935cabc36b/transformed/drawerlayout-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/856ab16736c3e47b72c748f690c697de/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/560848b10118794cda5ff845f47d7de1/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/maofeifei/.gradle/caches/transforms-4/75cfb863925bad00338f40d2c5a72794/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/maofeifei/.gradle/caches/transforms-4/1dd02ea722555ae3363a3eea3dc80289/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.customview:customview:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/e66e340452a4e411571d26252920b849/transformed/customview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/maofeifei/.gradle/caches/transforms-4/6413d13ad0c3da94fc3a635584436bcd/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/maofeifei/.gradle/caches/transforms-4/f1d3bdc86ecf8d28690e8fb648869f95/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/5e9ced2ec9e57cd86b0e04bf64bc9db4/transformed/lifecycle-livedata-core-ktx-2.8.3/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/40713768d060c16fdf2183f37dad4f1e/transformed/lifecycle-viewmodel-2.8.3/AndroidManifest.xml:2:1-5:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/b1c998c17f0eb0373c446c7a34db0547/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/10a3ee85c79f14f5166c8bdc4aad08f6/transformed/lifecycle-livedata-2.8.3/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/e03a9c1a24267fac3ba98a248fea4df6/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/42bb50978fd303056137db62d36ed210/transformed/lifecycle-runtime-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/cc060b821ffd062708e5507c8c00bd39/transformed/lifecycle-viewmodel-savedstate-2.8.3/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/1eaf86a222a93a02acf45592372f9e9f/transformed/lifecycle-viewmodel-ktx-2.8.3/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/70d6678d53d80313daaa3e2db94a9a1e/transformed/lifecycle-livedata-core-2.8.3/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/6a99f20f60485edf9886cc0281f8bea0/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/b3def3cc1cdd1c41ad4ba83afc4e1ad8/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/01c9b7ddfd40de31b2b920101df1d477/transformed/ui-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-ktx:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/6ddb8d86da799cb297d9360f9fb89df2/transformed/activity-ktx-1.9.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-compose:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/3e7644cf8327476229fe58101f26ffae/transformed/activity-compose-1.9.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.sqlite:sqlite-framework:2.4.0] /Users/maofeifei/.gradle/caches/transforms-4/ed9ce016504f8b7c0fa4daa398f13caf/transformed/sqlite-framework-2.4.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.sqlite:sqlite:2.4.0] /Users/maofeifei/.gradle/caches/transforms-4/e50b3f37bbb829d55d2204ae129072ee/transformed/sqlite-2.4.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/8633e5253d1d9ffa0f4305671baad26e/transformed/runtime-saveable-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/26fe1f390e7dca1cfe961f7b9bfb5e95/transformed/runtime-release/AndroidManifest.xml:2:1-7:12
+MERGED from [com.patrykandpatrick.vico:core:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/eec25873eaa732b1b3dfe82e90fdf281/transformed/core-2.0.0-beta.2/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /Users/maofeifei/.gradle/caches/transforms-4/3bdac89ab9c3738667af0890254df71c/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/fdb4155a6c10b3d7a815e0dae54d45f4/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/maofeifei/.gradle/caches/transforms-4/f93acb63b23286979408eb21942d2aeb/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/b488e30f9cf87d06274574721913ab98/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/b55aa83d11468d0414a7444552675533/transformed/tracing-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/4fe6c9660fbc41dee5fe048fbdcc9fc8/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/be5e30083e7ed429ec28235bb22ffad4/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.dagger:dagger-lint-aar:2.51.1] /Users/maofeifei/.gradle/caches/transforms-4/e2945c9883d0311f7a34311dfb406d3e/transformed/dagger-lint-aar-2.51.1/AndroidManifest.xml:16:1-19:12
+	package
+		INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:4:5-67
+	android:name
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:4:22-64
+application
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:6:5-32:19
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:6:5-32:19
+MERGED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:23:5-29:19
+MERGED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:23:5-29:19
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:28:5-89
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/fdb4155a6c10b3d7a815e0dae54d45f4/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/fdb4155a6c10b3d7a815e0dae54d45f4/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/b488e30f9cf87d06274574721913ab98/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/b488e30f9cf87d06274574721913ab98/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+	android:extractNativeLibs
+		INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+	android:supportsRtl
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:10:9-35
+	android:label
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:9:9-41
+	android:allowBackup
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:8:9-35
+	android:theme
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:11:9-54
+	android:name
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:7:9-28
+activity#com.financial.freedom.MainActivity
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:23:9-31:20
+	android:exported
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:25:13-36
+	android:theme
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:26:13-58
+	android:name
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:24:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:27:13-30:29
+action#android.intent.action.MAIN
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:28:17-69
+	android:name
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:28:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:29:17-77
+	android:name
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:29:27-74
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:18:13-20:54
+	android:resource
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:20:17-51
+	android:name
+		ADDED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml:19:17-67
+uses-sdk
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+MERGED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.room:room-ktx:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/4ae539c1e4218e9f8019feaefa590414/transformed/room-ktx-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.room:room-ktx:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/4ae539c1e4218e9f8019feaefa590414/transformed/room-ktx-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.hilt:hilt-navigation-compose:1.2.0] /Users/maofeifei/.gradle/caches/transforms-4/9622a8413d1adce95812c61458361367/transformed/hilt-navigation-compose-1.2.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.hilt:hilt-navigation-compose:1.2.0] /Users/maofeifei/.gradle/caches/transforms-4/9622a8413d1adce95812c61458361367/transformed/hilt-navigation-compose-1.2.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.hilt:hilt-navigation:1.2.0] /Users/maofeifei/.gradle/caches/transforms-4/a47f6bd305b306b5dcc7e4cec57b1164/transformed/hilt-navigation-1.2.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.hilt:hilt-navigation:1.2.0] /Users/maofeifei/.gradle/caches/transforms-4/a47f6bd305b306b5dcc7e4cec57b1164/transformed/hilt-navigation-1.2.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-common:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/1bc118490781fab7a8e8046593ee7afc/transformed/navigation-common-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-common:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/1bc118490781fab7a8e8046593ee7afc/transformed/navigation-common-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-runtime:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/4fe8833d16cf2d76c3290e0c3b8a0c94/transformed/navigation-runtime-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-runtime:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/4fe8833d16cf2d76c3290e0c3b8a0c94/transformed/navigation-runtime-2.8.5/AndroidManifest.xml:20:5-44
+MERGED from [androidx.navigation:navigation-common-ktx:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/8198a925a092087d67a2eaeff6172200/transformed/navigation-common-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-common-ktx:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/8198a925a092087d67a2eaeff6172200/transformed/navigation-common-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-runtime-ktx:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/107f9d33b6395f10f58b5e1fa3cc3f46/transformed/navigation-runtime-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-runtime-ktx:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/107f9d33b6395f10f58b5e1fa3cc3f46/transformed/navigation-runtime-ktx-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-compose:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/9fe6b20a613c1dd6e97f66c73b49ef6b/transformed/navigation-compose-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-compose:2.8.5] /Users/maofeifei/.gradle/caches/transforms-4/9fe6b20a613c1dd6e97f66c73b49ef6b/transformed/navigation-compose-2.8.5/AndroidManifest.xml:5:5-44
+MERGED from [com.patrykandpatrick.vico:compose-m3:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/2587f24e575993d940520da8341e5919/transformed/compose-m3-2.0.0-beta.2/AndroidManifest.xml:5:5-44
+MERGED from [com.patrykandpatrick.vico:compose-m3:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/2587f24e575993d940520da8341e5919/transformed/compose-m3-2.0.0-beta.2/AndroidManifest.xml:5:5-44
+MERGED from [com.patrykandpatrick.vico:compose:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/73ef3bfb2a777a285ab0cc4eea66b78f/transformed/compose-2.0.0-beta.2/AndroidManifest.xml:5:5-44
+MERGED from [com.patrykandpatrick.vico:compose:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/73ef3bfb2a777a285ab0cc4eea66b78f/transformed/compose-2.0.0-beta.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /Users/maofeifei/.gradle/caches/transforms-4/5693ec986b2a31f707dd653c9af2f9ec/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /Users/maofeifei/.gradle/caches/transforms-4/5693ec986b2a31f707dd653c9af2f9ec/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat:1.7.0] /Users/maofeifei/.gradle/caches/transforms-4/1fc14c131901b9d514b5c86819541598/transformed/appcompat-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat:1.7.0] /Users/maofeifei/.gradle/caches/transforms-4/1fc14c131901b9d514b5c86819541598/transformed/appcompat-1.7.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.dagger:hilt-android:2.51.1] /Users/maofeifei/.gradle/caches/transforms-4/fe643c6e05fbd23514a6bd897d5af0da/transformed/hilt-android-2.51.1/AndroidManifest.xml:18:3-42
+MERGED from [com.google.dagger:hilt-android:2.51.1] /Users/maofeifei/.gradle/caches/transforms-4/fe643c6e05fbd23514a6bd897d5af0da/transformed/hilt-android-2.51.1/AndroidManifest.xml:18:3-42
+MERGED from [androidx.fragment:fragment:1.5.4] /Users/maofeifei/.gradle/caches/transforms-4/f4877a8c3d8cdef8789824a3b44c70e2/transformed/fragment-1.5.4/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.5.4] /Users/maofeifei/.gradle/caches/transforms-4/f4877a8c3d8cdef8789824a3b44c70e2/transformed/fragment-1.5.4/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.activity:activity:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/5e025412bcf00b2c6b7f41496475cdc2/transformed/activity-1.9.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/5e025412bcf00b2c6b7f41496475cdc2/transformed/activity-1.9.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material3:material3-android:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/f0db4a63dcaeb430de0af039829b70c9/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material3:material3-android:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/f0db4a63dcaeb430de0af039829b70c9/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material:material-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/b1ab25407c1ed67430a0bfa14a1e8c5e/transformed/material-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/b1ab25407c1ed67430a0bfa14a1e8c5e/transformed/material-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/bf71d18fe796b3d12e9613e2b2ba4f6b/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/bf71d18fe796b3d12e9613e2b2ba4f6b/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/73656b9b2f019373c20e96ccd5a665f0/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/73656b9b2f019373c20e96ccd5a665f0/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/c25a0ea86006d06c609b258000484520/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/c25a0ea86006d06c609b258000484520/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/c273b9333af7c2ffb82c7bb5936a0333/transformed/ui-tooling-data-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/c273b9333af7c2ffb82c7bb5936a0333/transformed/ui-tooling-data-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/67ec38ee4a89be6cad443f5d1b00a15c/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/67ec38ee4a89be6cad443f5d1b00a15c/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/e490d87a245ef67ca3ed3898f7bc6a71/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/e490d87a245ef67ca3ed3898f7bc6a71/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/ec675cb6db14f6d56ad722313f4bbba0/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/ec675cb6db14f6d56ad722313f4bbba0/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/816fa254c451020c0379e333fb82abef/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/816fa254c451020c0379e333fb82abef/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/1ac4c1089de1ba01921928b416fbe438/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/1ac4c1089de1ba01921928b416fbe438/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/0b972cd203c6942e1bcc3f5978cdbaa1/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/0b972cd203c6942e1bcc3f5978cdbaa1/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.animation:animation-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/85c25614c6bc8c2670fac66a0caba61a/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/85c25614c6bc8c2670fac66a0caba61a/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/bd95a9efcd7763893c8478973a15305d/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/bd95a9efcd7763893c8478973a15305d/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/27cceaa41271d81144d75e57ec3f1869/transformed/material-icons-extended-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/27cceaa41271d81144d75e57ec3f1869/transformed/material-icons-extended-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/912f3aa6df86d2a9c3e4d783449d6a23/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/912f3aa6df86d2a9c3e4d783449d6a23/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/45534fa807bb627d4f3a45c5b88275ad/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/45534fa807bb627d4f3a45c5b88275ad/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/7c42b90f97ff535deca36b985c2cd811/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/7c42b90f97ff535deca36b985c2cd811/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.core:core-ktx:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/74a882ede820a040c57bdc801404946f/transformed/core-ktx-1.13.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/74a882ede820a040c57bdc801404946f/transformed/core-ktx-1.13.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/eb98774fcf46bb3553c08d6fd8a8233c/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.autofill:autofill:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/eb98774fcf46bb3553c08d6fd8a8233c/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/maofeifei/.gradle/caches/transforms-4/7baa2ddbd26d584e2e6a15d5184f55ed/transformed/graphics-path-1.0.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.graphics:graphics-path:1.0.1] /Users/maofeifei/.gradle/caches/transforms-4/7baa2ddbd26d584e2e6a15d5184f55ed/transformed/graphics-path-1.0.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/5d411f69df50b13efe6c3b935cabc36b/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/5d411f69df50b13efe6c3b935cabc36b/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/856ab16736c3e47b72c748f690c697de/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/856ab16736c3e47b72c748f690c697de/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/560848b10118794cda5ff845f47d7de1/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/560848b10118794cda5ff845f47d7de1/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/maofeifei/.gradle/caches/transforms-4/75cfb863925bad00338f40d2c5a72794/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/maofeifei/.gradle/caches/transforms-4/75cfb863925bad00338f40d2c5a72794/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/maofeifei/.gradle/caches/transforms-4/1dd02ea722555ae3363a3eea3dc80289/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/maofeifei/.gradle/caches/transforms-4/1dd02ea722555ae3363a3eea3dc80289/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/e66e340452a4e411571d26252920b849/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/e66e340452a4e411571d26252920b849/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/maofeifei/.gradle/caches/transforms-4/6413d13ad0c3da94fc3a635584436bcd/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /Users/maofeifei/.gradle/caches/transforms-4/6413d13ad0c3da94fc3a635584436bcd/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/maofeifei/.gradle/caches/transforms-4/f1d3bdc86ecf8d28690e8fb648869f95/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /Users/maofeifei/.gradle/caches/transforms-4/f1d3bdc86ecf8d28690e8fb648869f95/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/5e9ced2ec9e57cd86b0e04bf64bc9db4/transformed/lifecycle-livedata-core-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/5e9ced2ec9e57cd86b0e04bf64bc9db4/transformed/lifecycle-livedata-core-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/40713768d060c16fdf2183f37dad4f1e/transformed/lifecycle-viewmodel-2.8.3/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/40713768d060c16fdf2183f37dad4f1e/transformed/lifecycle-viewmodel-2.8.3/AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/b1c998c17f0eb0373c446c7a34db0547/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/b1c998c17f0eb0373c446c7a34db0547/transformed/lifecycle-viewmodel-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/10a3ee85c79f14f5166c8bdc4aad08f6/transformed/lifecycle-livedata-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/10a3ee85c79f14f5166c8bdc4aad08f6/transformed/lifecycle-livedata-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/e03a9c1a24267fac3ba98a248fea4df6/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/e03a9c1a24267fac3ba98a248fea4df6/transformed/lifecycle-runtime-ktx-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/42bb50978fd303056137db62d36ed210/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/42bb50978fd303056137db62d36ed210/transformed/lifecycle-runtime-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/cc060b821ffd062708e5507c8c00bd39/transformed/lifecycle-viewmodel-savedstate-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/cc060b821ffd062708e5507c8c00bd39/transformed/lifecycle-viewmodel-savedstate-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/1eaf86a222a93a02acf45592372f9e9f/transformed/lifecycle-viewmodel-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/1eaf86a222a93a02acf45592372f9e9f/transformed/lifecycle-viewmodel-ktx-2.8.3/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/70d6678d53d80313daaa3e2db94a9a1e/transformed/lifecycle-livedata-core-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/70d6678d53d80313daaa3e2db94a9a1e/transformed/lifecycle-livedata-core-2.8.3/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/6a99f20f60485edf9886cc0281f8bea0/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/6a99f20f60485edf9886cc0281f8bea0/transformed/lifecycle-runtime-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/b3def3cc1cdd1c41ad4ba83afc4e1ad8/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-compose-android:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/b3def3cc1cdd1c41ad4ba83afc4e1ad8/transformed/lifecycle-viewmodel-compose-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/01c9b7ddfd40de31b2b920101df1d477/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/01c9b7ddfd40de31b2b920101df1d477/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/6ddb8d86da799cb297d9360f9fb89df2/transformed/activity-ktx-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/6ddb8d86da799cb297d9360f9fb89df2/transformed/activity-ktx-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/3e7644cf8327476229fe58101f26ffae/transformed/activity-compose-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.9.0] /Users/maofeifei/.gradle/caches/transforms-4/3e7644cf8327476229fe58101f26ffae/transformed/activity-compose-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.sqlite:sqlite-framework:2.4.0] /Users/maofeifei/.gradle/caches/transforms-4/ed9ce016504f8b7c0fa4daa398f13caf/transformed/sqlite-framework-2.4.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite-framework:2.4.0] /Users/maofeifei/.gradle/caches/transforms-4/ed9ce016504f8b7c0fa4daa398f13caf/transformed/sqlite-framework-2.4.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite:2.4.0] /Users/maofeifei/.gradle/caches/transforms-4/e50b3f37bbb829d55d2204ae129072ee/transformed/sqlite-2.4.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite:2.4.0] /Users/maofeifei/.gradle/caches/transforms-4/e50b3f37bbb829d55d2204ae129072ee/transformed/sqlite-2.4.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/8633e5253d1d9ffa0f4305671baad26e/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/8633e5253d1d9ffa0f4305671baad26e/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/26fe1f390e7dca1cfe961f7b9bfb5e95/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/26fe1f390e7dca1cfe961f7b9bfb5e95/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [com.patrykandpatrick.vico:core:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/eec25873eaa732b1b3dfe82e90fdf281/transformed/core-2.0.0-beta.2/AndroidManifest.xml:5:5-44
+MERGED from [com.patrykandpatrick.vico:core:2.0.0-beta.2] /Users/maofeifei/.gradle/caches/transforms-4/eec25873eaa732b1b3dfe82e90fdf281/transformed/core-2.0.0-beta.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /Users/maofeifei/.gradle/caches/transforms-4/3bdac89ab9c3738667af0890254df71c/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /Users/maofeifei/.gradle/caches/transforms-4/3bdac89ab9c3738667af0890254df71c/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/fdb4155a6c10b3d7a815e0dae54d45f4/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/fdb4155a6c10b3d7a815e0dae54d45f4/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/maofeifei/.gradle/caches/transforms-4/f93acb63b23286979408eb21942d2aeb/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /Users/maofeifei/.gradle/caches/transforms-4/f93acb63b23286979408eb21942d2aeb/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/b488e30f9cf87d06274574721913ab98/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/b488e30f9cf87d06274574721913ab98/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/b55aa83d11468d0414a7444552675533/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.tracing:tracing:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/b55aa83d11468d0414a7444552675533/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/4fe6c9660fbc41dee5fe048fbdcc9fc8/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/4fe6c9660fbc41dee5fe048fbdcc9fc8/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/be5e30083e7ed429ec28235bb22ffad4/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/maofeifei/.gradle/caches/transforms-4/be5e30083e7ed429ec28235bb22ffad4/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.dagger:dagger-lint-aar:2.51.1] /Users/maofeifei/.gradle/caches/transforms-4/e2945c9883d0311f7a34311dfb406d3e/transformed/dagger-lint-aar-2.51.1/AndroidManifest.xml:18:3-42
+MERGED from [com.google.dagger:dagger-lint-aar:2.51.1] /Users/maofeifei/.gradle/caches/transforms-4/e2945c9883d0311f7a34311dfb406d3e/transformed/dagger-lint-aar-2.51.1/AndroidManifest.xml:18:3-42
+	android:targetSdkVersion
+		INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/maofeifei/Desktop/financial_freedom/app/src/main/AndroidManifest.xml
+service#androidx.room.MultiInstanceInvalidationService
+ADDED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:24:9-28:63
+	android:exported
+		ADDED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:27:13-37
+	tools:ignore
+		ADDED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:28:13-60
+	android:directBootAware
+		ADDED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:26:13-43
+	android:name
+		ADDED from [androidx.room:room-runtime:2.6.1] /Users/maofeifei/.gradle/caches/transforms-4/f9a3c26bff86bbde4d6ed8df639ea0f0/transformed/room-runtime-2.6.1/AndroidManifest.xml:25:13-74
+activity#androidx.compose.ui.tooling.PreviewActivity
+ADDED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:23:9-25:39
+	android:exported
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:25:13-36
+	android:name
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.7.4] /Users/maofeifei/.gradle/caches/transforms-4/16e8ae7393fbe00a5f09659504cb00c2/transformed/ui-tooling-release/AndroidManifest.xml:24:13-71
+provider#androidx.startup.InitializationProvider
+ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/b488e30f9cf87d06274574721913ab98/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] /Users/maofeifei/.gradle/caches/transforms-4/b488e30f9cf87d06274574721913ab98/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+	tools:node
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:28:13-31
+	android:authorities
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+	android:exported
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+meta-data#androidx.emoji2.text.EmojiCompatInitializer
+ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /Users/maofeifei/.gradle/caches/transforms-4/ba51b0752c6a3f124df13e670f10c599/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+permission#com.financial.freedom.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+uses-permission#com.financial.freedom.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.13.1] /Users/maofeifei/.gradle/caches/transforms-4/12b4430b30b1dda9519532b040cf97fa/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.8.3] /Users/maofeifei/.gradle/caches/transforms-4/632eb179c988a5227686777ed14d0083/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:30:17-78
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] /Users/maofeifei/.gradle/caches/transforms-4/c02b7e5edf4343295aa4cb5d361dbb79/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92

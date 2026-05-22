@@ -1,0 +1,6 @@
+[
+    {
+        "merged": "com.financial.freedom.app-debug-64:/xml_file_paths.xml.flat",
+        "source": "com.financial.freedom.app-main-66:/xml/file_paths.xml"
+    }
+]
