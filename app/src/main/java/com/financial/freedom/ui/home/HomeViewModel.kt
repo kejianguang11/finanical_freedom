@@ -73,30 +73,55 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var needsRecompute = false
+    private var initStarted = false
+    private var cacheCleared = false
 
     init {
         viewModelScope.launch {
+            if (initStarted) return@launch
+            initStarted = true
+
             val accountId = accountManager.currentAccountId.value ?: return@launch
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
+            // 一次性清理旧的黄金缓存价格，让新 API 生效
+            if (!cacheCleared) {
+                clearGoldPriceCache(accountId)
+                cacheCleared = true
+            }
 
             // 1. 立即用缓存数据渲染，不等待网络
             seedExchangeRatesIfNeeded()
             refreshData(accountId)
             loadTrendData(_uiState.value.selectedTrendRange, accountId)
 
-            // 2. 后台补齐缺失数据（网络密集操作）
-            backfillEngine.backfillIfNeeded(accountId)
-
-            // 3. 拉取最新价格
-            fetchLivePrices(accountId)
-
-            // 4. 重算并刷新 UI
-            if (needsRecompute) {
-                computeFromEntities(accountId, today)
+            // 2. 后台补齐缺失数据 + 拉取最新价格
+            try {
+                backfillEngine.backfillIfNeeded(accountId)
+                fetchLivePrices(accountId)
+                if (needsRecompute) {
+                    computeFromEntities(accountId, today)
+                }
+                refreshData(accountId)
+                loadTrendData(_uiState.value.selectedTrendRange, accountId)
+            } catch (e: Exception) {
+                Log.w("HomeVM", "Background fetch failed: ${e.message}")
             }
-            refreshData(accountId)
-            loadTrendData(_uiState.value.selectedTrendRange, accountId)
         }
+    }
+
+    private suspend fun clearGoldPriceCache(accountId: Long) {
+        try {
+            val goldHoldings = holdingDao.getAllList(accountId).filter { it.type == "GOLD" }
+            for (h in goldHoldings) {
+                val latest = priceSnapshotDao.getLatest(h.id, accountId)
+                // 旧黄金缓存可能价格偏高，清除后强制重新拉取
+                if (latest != null) {
+                    Log.w("HomeVM", "Deleting stale gold cache for holding ${h.id}: price=${latest.unitPrice}")
+                    priceSnapshotDao.deleteByHoldingId(h.id, accountId)
+                }
+            }
+        } catch (_: Exception) { }
     }
 
     private suspend fun seedExchangeRatesIfNeeded() {

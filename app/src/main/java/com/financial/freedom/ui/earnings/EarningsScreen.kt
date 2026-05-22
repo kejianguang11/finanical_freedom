@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +26,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -36,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,13 +58,29 @@ fun EarningsScreen(
     Column(Modifier.fillMaxSize()) {
         ScrollableTabRow(
             selectedTabIndex = state.selectedView,
-            modifier = Modifier.padding(horizontal = 8.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
+            containerColor = MaterialTheme.colorScheme.background,
+            edgePadding = 0.dp,
+            divider = {},
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[state.selectedView]),
+                    color = FinancialColors.gold
+                )
+            }
         ) {
             views.forEachIndexed { index, title ->
                 Tab(
                     selected = state.selectedView == index,
                     onClick = { viewModel.selectView(index) },
-                    text = { Text(title) }
+                    text = {
+                        Text(
+                            title,
+                            fontWeight = if (state.selectedView == index) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (state.selectedView == index) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 )
             }
         }
@@ -100,11 +116,11 @@ private fun BreakdownSheet(breakdown: List<com.financial.freedom.data.local.enti
             breakdown.forEach { item ->
                 total += item.changeCNY
                 val icon = when (item.type) {
-                    "DEPOSIT" -> "💰 存款"
-                    "STOCK" -> "📈 股票"
-                    "FUND" -> "💵 基金"
-                    "GOLD" -> "🥇 黄金"
-                    else -> "📊 ${item.type}"
+                    "DEPOSIT" -> "存款"
+                    "STOCK" -> "股票"
+                    "FUND" -> "基金"
+                    "GOLD" -> "黄金"
+                    else -> item.type
                 }
                 val changeText = if (item.changeCNY >= BigDecimal.ZERO)
                     "+${formatMoney(item.changeCNY)}" else formatMoney(item.changeCNY)
@@ -205,10 +221,9 @@ private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewMode
                 modifier = Modifier.fillMaxWidth().clickable { viewModel.toggleWeekExpanded(index) },
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.elevatedCardColors(
-                    containerColor = if (isUp) FinancialColors.up.copy(alpha = 0.03f)
-                    else FinancialColors.down.copy(alpha = 0.03f)
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
-                elevation = CardDefaults.elevatedCardElevation(2.dp)
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
             ) {
                 Column(Modifier.padding(14.dp)) {
                     // Week header
@@ -353,15 +368,11 @@ private fun MonthEarningsView(state: EarningsUiState) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             itemsIndexed(state.monthEarnings) { _, month ->
                 val isUp = month.totalChange >= BigDecimal.ZERO
-                val bgColor = when {
-                    month.totalChange > BigDecimal.ZERO -> FinancialColors.up.copy(alpha = 0.06f)
-                    month.totalChange < BigDecimal.ZERO -> FinancialColors.down.copy(alpha = 0.06f)
-                    else -> MaterialTheme.colorScheme.surfaceVariant
-                }
-                ElevatedCard(
+                    ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(containerColor = bgColor),
-                    elevation = CardDefaults.elevatedCardElevation(1.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(
                         Modifier.fillMaxWidth().padding(14.dp),
@@ -419,11 +430,9 @@ private fun YearEarningsView(state: EarningsUiState) {
             val isUp = year.totalChange >= BigDecimal.ZERO
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = if (isUp) FinancialColors.up.copy(alpha = 0.05f)
-                    else FinancialColors.down.copy(alpha = 0.05f)
-                ),
-                elevation = CardDefaults.elevatedCardElevation(2.dp)
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
             ) {
                 Column(Modifier.padding(18.dp)) {
                     Text(

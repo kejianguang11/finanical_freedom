@@ -43,6 +43,8 @@ public final class PriceSnapshotDao_Impl implements PriceSnapshotDao {
 
   private final SharedSQLiteStatement __preparedStmtOfDeleteByAccountId;
 
+  private final SharedSQLiteStatement __preparedStmtOfDeleteByHoldingId;
+
   public PriceSnapshotDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
     this.__insertionAdapterOfPriceSnapshot = new EntityInsertionAdapter<PriceSnapshot>(__db) {
@@ -78,6 +80,14 @@ public final class PriceSnapshotDao_Impl implements PriceSnapshotDao {
       @NonNull
       public String createQuery() {
         final String _query = "DELETE FROM price_snapshots WHERE accountId = ?";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfDeleteByHoldingId = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "DELETE FROM price_snapshots WHERE holdingId = ? AND accountId = ?";
         return _query;
       }
     };
@@ -141,6 +151,34 @@ public final class PriceSnapshotDao_Impl implements PriceSnapshotDao {
           }
         } finally {
           __preparedStmtOfDeleteByAccountId.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object deleteByHoldingId(final long holdingId, final long accountId,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfDeleteByHoldingId.acquire();
+        int _argIndex = 1;
+        _stmt.bindLong(_argIndex, holdingId);
+        _argIndex = 2;
+        _stmt.bindLong(_argIndex, accountId);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfDeleteByHoldingId.release(_stmt);
         }
       }
     }, $completion);

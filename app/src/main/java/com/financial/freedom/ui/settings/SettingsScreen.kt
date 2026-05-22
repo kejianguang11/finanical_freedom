@@ -22,8 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -330,9 +330,10 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
 
-        Card(
+        ElevatedCard(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -367,9 +368,10 @@ fun SettingsScreen(
         }
 
         // ---- 测试数据 ----
-        Card(
+        ElevatedCard(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
             Row(
                 Modifier.padding(16.dp).clickable { viewModel.generateTestData() },
@@ -386,9 +388,10 @@ fun SettingsScreen(
         Spacer(Modifier.height(16.dp))
 
         // 数据导出
-        Card(
+        ElevatedCard(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
                 Text("数据导出", style = MaterialTheme.typography.bodyLarge)
@@ -423,9 +426,10 @@ fun SettingsScreen(
         }
 
         // 数据导入
-        Card(
+        ElevatedCard(
             Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { openLauncher.launch(arrayOf("text/*", "*/*")) },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -437,9 +441,10 @@ fun SettingsScreen(
         }
 
         // 汇率
-        Card(
+        ElevatedCard(
             Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { viewModel.refreshRates() },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -451,9 +456,10 @@ fun SettingsScreen(
         }
 
         // 清空数据
-        Card(
+        ElevatedCard(
             Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { viewModel.showClearConfirm() },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("清空全部数据", style = MaterialTheme.typography.bodyLarge, color = FinancialColors.up)
@@ -461,9 +467,10 @@ fun SettingsScreen(
         }
 
         // 关于
-        Card(
+        ElevatedCard(
             Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
                 Text("关于", style = MaterialTheme.typography.bodyLarge)

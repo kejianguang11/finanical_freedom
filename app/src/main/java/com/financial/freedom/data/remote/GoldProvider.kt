@@ -50,11 +50,11 @@ class GoldProvider @Inject constructor(
 
     /**
      * 从东方财富获取 AU9999 国内金价（元/克）
-     * https://push2.eastmoney.com/api/qt/stock/get?secid=113.AU9999&fields=f43,f57,f58
+     * https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f57,f58
      */
     private suspend fun fetchAU9999Price(date: LocalDate): PriceResult? {
         return try {
-            val url = "https://push2.eastmoney.com/api/qt/stock/get?secid=113.AU9999&fields=f43,f57,f58"
+            val url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f57,f58"
             Log.d(TAG, "Fetching AU9999: $url")
             val request = Request.Builder()
                 .url(url)
@@ -65,18 +65,13 @@ class GoldProvider @Inject constructor(
 
             val root = json.parseToJsonElement(body).jsonObject
             val data = root["data"]?.jsonObject ?: return null
-            val priceRaw = data["f43"]?.jsonPrimitive?.content ?: return null
+            val priceRaw = data["f43"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: return null
             val name = data["f58"]?.jsonPrimitive?.content ?: "上海金AU9999"
 
-            // f43 是 eastmoney 标准价格字段，需要除以 precision
-            // AU9999 的 pricePrecision 通常为 2（即乘以 100 传输），取 f46 验证
-            val pricePrecision = data["f46"]?.jsonPrimitive?.content?.toIntOrNull() ?: 2
-            val divisor = Math.pow(10.0, pricePrecision.toDouble())
-            val cnyPerGram = (priceRaw.toDouble() / divisor).let {
-                BigDecimal.valueOf(it).setScale(4, RoundingMode.HALF_UP)
-            }
+            // f43 返回的价格是实际价格 × 100（整数传输），除以 100 得到元/克
+            val cnyPerGram = BigDecimal.valueOf(priceRaw / 100.0).setScale(4, RoundingMode.HALF_UP)
 
-            Log.d(TAG, "AU9999: $name, CNY/g=$cnyPerGram")
+            Log.d(TAG, "AU9999: $name, raw=$priceRaw, CNY/g=$cnyPerGram")
             PriceResult(symbol = "AU9999", price = cnyPerGram, currency = "CNY", date = date, name = name)
         } catch (e: Exception) {
             Log.w(TAG, "AU9999 fetch FAILED: ${e.message}")

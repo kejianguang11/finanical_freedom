@@ -1,5 +1,6 @@
 package com.financial.freedom.ui.home
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Diamond
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.WaterDrop
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,39 +63,52 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
-                .padding(top = 20.dp)
+                .padding(top = 32.dp)
         ) {
-            // ===== 顶部：总资产 + 今日收益 =====
+            // ===== 总资产 Hero =====
             Text(
                 "总资产",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 "¥ ${state.totalValueCNY}",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Bold
+                ),
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(Modifier.height(4.dp))
+
+            Spacer(Modifier.height(8.dp))
+
+            // 金色分割线
+            HorizontalDivider(
+                modifier = Modifier.width(48.dp),
+                thickness = 2.dp,
+                color = FinancialColors.gold
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // 今日收益
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = state.todayChange,
-                    fontSize = 20.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (state.isUp) FinancialColors.up else FinancialColors.down
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = state.todayChangePct,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.titleMedium,
                     color = if (state.isUp) FinancialColors.up else FinancialColors.down
                 )
             }
 
-            // 最后更新时间
+            // 更新时间
             if (state.lastUpdateTime != null) {
                 Spacer(Modifier.height(2.dp))
                 Text(
@@ -108,11 +123,13 @@ fun HomeScreen(
             // ===== 资产走势图 =====
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth().height(220.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
             ) {
-                Column(Modifier.padding(16.dp)) {
+                Column(Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -138,10 +155,16 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("暂无走势数据", style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("下拉刷新或添加资产", style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "暂无走势数据",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "下拉刷新或添加资产",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     } else {
@@ -231,6 +254,10 @@ private fun TrendRangeSelector(
                 TrendRange.YEAR -> "1年"
             }
             val isSelected = selected == range
+            val textColor by animateColorAsState(
+                if (isSelected) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable { onSelect(range) }
@@ -238,18 +265,17 @@ private fun TrendRangeSelector(
                 Text(
                     label,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = textColor
                 )
                 if (isSelected) {
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(4.dp))
                     Box(
                         Modifier
-                            .width(20.dp)
+                            .width(24.dp)
                             .height(3.dp)
                             .clip(RoundedCornerShape(1.5.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(FinancialColors.gold)
                     )
                 }
             }
@@ -269,18 +295,21 @@ private fun AssetCard(
 ) {
     ElevatedCard(
         modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
-        Column(Modifier.padding(14.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    icon, contentDescription = label,
-                    modifier = Modifier.size(16.dp),
+                    icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(18.dp),
                     tint = accentColor
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(
                     label,
                     style = MaterialTheme.typography.labelMedium,
@@ -288,11 +317,11 @@ private fun AssetCard(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 value,
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
+                fontSize = 18.sp,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -302,9 +331,11 @@ private fun AssetCard(
             Text(
                 text = "$change 今日",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isUp) FinancialColors.up
-                else if (change.startsWith("-")) FinancialColors.down
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = when {
+                    isUp -> FinancialColors.up
+                    change.startsWith("-") -> FinancialColors.down
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 fontWeight = FontWeight.Medium,
                 maxLines = 1
             )

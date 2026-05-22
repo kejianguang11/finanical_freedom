@@ -1,0 +1,925 @@
+package com.financial.freedom;
+
+import android.app.Activity;
+import android.app.Service;
+import android.view.View;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.SavedStateHandle;
+import androidx.lifecycle.ViewModel;
+import com.financial.freedom.data.TestDataGenerator;
+import com.financial.freedom.data.csv.CsvExporter;
+import com.financial.freedom.data.csv.CsvImporter;
+import com.financial.freedom.data.local.AppDatabase;
+import com.financial.freedom.data.local.dao.AccountDao;
+import com.financial.freedom.data.local.dao.DailyBreakdownItemDao;
+import com.financial.freedom.data.local.dao.DailySummaryDao;
+import com.financial.freedom.data.local.dao.DepositDao;
+import com.financial.freedom.data.local.dao.ExchangeRateDao;
+import com.financial.freedom.data.local.dao.HoldingDao;
+import com.financial.freedom.data.local.dao.PriceSnapshotDao;
+import com.financial.freedom.data.local.dao.TransactionDao;
+import com.financial.freedom.data.remote.AStockProvider;
+import com.financial.freedom.data.remote.CNFundProvider;
+import com.financial.freedom.data.remote.ExchangeRateProvider;
+import com.financial.freedom.data.remote.GoldProvider;
+import com.financial.freedom.data.remote.HKStockProvider;
+import com.financial.freedom.data.remote.PriceService;
+import com.financial.freedom.data.remote.USStockProvider;
+import com.financial.freedom.data.repository.DepositRepository;
+import com.financial.freedom.data.repository.ExchangeRateRepository;
+import com.financial.freedom.data.repository.HoldingRepository;
+import com.financial.freedom.data.repository.SummaryRepository;
+import com.financial.freedom.di.DatabaseModule_ProvideAccountDaoFactory;
+import com.financial.freedom.di.DatabaseModule_ProvideDailyBreakdownItemDaoFactory;
+import com.financial.freedom.di.DatabaseModule_ProvideDailySummaryDaoFactory;
+import com.financial.freedom.di.DatabaseModule_ProvideDatabaseFactory;
+import com.financial.freedom.di.DatabaseModule_ProvideDepositDaoFactory;
+import com.financial.freedom.di.DatabaseModule_ProvideExchangeRateDaoFactory;
+import com.financial.freedom.di.DatabaseModule_ProvideHoldingDaoFactory;
+import com.financial.freedom.di.DatabaseModule_ProvidePriceSnapshotDaoFactory;
+import com.financial.freedom.di.DatabaseModule_ProvideTransactionDaoFactory;
+import com.financial.freedom.di.NetworkModule_ProvideOkHttpClientFactory;
+import com.financial.freedom.domain.account.AccountManager;
+import com.financial.freedom.domain.calculator.BackfillEngine;
+import com.financial.freedom.domain.calculator.InterestCalculator;
+import com.financial.freedom.domain.calculator.ValuationCalculator;
+import com.financial.freedom.ui.earnings.EarningsViewModel;
+import com.financial.freedom.ui.earnings.EarningsViewModel_HiltModules;
+import com.financial.freedom.ui.holdings.AddHoldingViewModel;
+import com.financial.freedom.ui.holdings.AddHoldingViewModel_HiltModules;
+import com.financial.freedom.ui.holdings.EditHoldingViewModel;
+import com.financial.freedom.ui.holdings.EditHoldingViewModel_HiltModules;
+import com.financial.freedom.ui.holdings.HoldingDetailViewModel;
+import com.financial.freedom.ui.holdings.HoldingDetailViewModel_HiltModules;
+import com.financial.freedom.ui.holdings.HoldingsViewModel;
+import com.financial.freedom.ui.holdings.HoldingsViewModel_HiltModules;
+import com.financial.freedom.ui.holdings.deposit.AddDepositViewModel;
+import com.financial.freedom.ui.holdings.deposit.AddDepositViewModel_HiltModules;
+import com.financial.freedom.ui.holdings.deposit.EditDepositViewModel;
+import com.financial.freedom.ui.holdings.deposit.EditDepositViewModel_HiltModules;
+import com.financial.freedom.ui.home.HomeViewModel;
+import com.financial.freedom.ui.home.HomeViewModel_HiltModules;
+import com.financial.freedom.ui.settings.SettingsViewModel;
+import com.financial.freedom.ui.settings.SettingsViewModel_HiltModules;
+import dagger.hilt.android.ActivityRetainedLifecycle;
+import dagger.hilt.android.ViewModelLifecycle;
+import dagger.hilt.android.internal.builders.ActivityComponentBuilder;
+import dagger.hilt.android.internal.builders.ActivityRetainedComponentBuilder;
+import dagger.hilt.android.internal.builders.FragmentComponentBuilder;
+import dagger.hilt.android.internal.builders.ServiceComponentBuilder;
+import dagger.hilt.android.internal.builders.ViewComponentBuilder;
+import dagger.hilt.android.internal.builders.ViewModelComponentBuilder;
+import dagger.hilt.android.internal.builders.ViewWithFragmentComponentBuilder;
+import dagger.hilt.android.internal.lifecycle.DefaultViewModelFactories;
+import dagger.hilt.android.internal.lifecycle.DefaultViewModelFactories_InternalFactoryFactory_Factory;
+import dagger.hilt.android.internal.managers.ActivityRetainedComponentManager_LifecycleModule_ProvideActivityRetainedLifecycleFactory;
+import dagger.hilt.android.internal.managers.SavedStateHandleHolder;
+import dagger.hilt.android.internal.modules.ApplicationContextModule;
+import dagger.hilt.android.internal.modules.ApplicationContextModule_ProvideContextFactory;
+import dagger.internal.DaggerGenerated;
+import dagger.internal.DoubleCheck;
+import dagger.internal.IdentifierNameString;
+import dagger.internal.KeepFieldType;
+import dagger.internal.LazyClassKeyMap;
+import dagger.internal.MapBuilder;
+import dagger.internal.Preconditions;
+import dagger.internal.Provider;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+import javax.annotation.processing.Generated;
+import okhttp3.OkHttpClient;
+
+@DaggerGenerated
+@Generated(
+    value = "dagger.internal.codegen.ComponentProcessor",
+    comments = "https://dagger.dev"
+)
+@SuppressWarnings({
+    "unchecked",
+    "rawtypes",
+    "KotlinInternal",
+    "KotlinInternalInJava",
+    "cast"
+})
+public final class DaggerApp_HiltComponents_SingletonC {
+  private DaggerApp_HiltComponents_SingletonC() {
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+    private ApplicationContextModule applicationContextModule;
+
+    private Builder() {
+    }
+
+    public Builder applicationContextModule(ApplicationContextModule applicationContextModule) {
+      this.applicationContextModule = Preconditions.checkNotNull(applicationContextModule);
+      return this;
+    }
+
+    public App_HiltComponents.SingletonC build() {
+      Preconditions.checkBuilderRequirement(applicationContextModule, ApplicationContextModule.class);
+      return new SingletonCImpl(applicationContextModule);
+    }
+  }
+
+  private static final class ActivityRetainedCBuilder implements App_HiltComponents.ActivityRetainedC.Builder {
+    private final SingletonCImpl singletonCImpl;
+
+    private SavedStateHandleHolder savedStateHandleHolder;
+
+    private ActivityRetainedCBuilder(SingletonCImpl singletonCImpl) {
+      this.singletonCImpl = singletonCImpl;
+    }
+
+    @Override
+    public ActivityRetainedCBuilder savedStateHandleHolder(
+        SavedStateHandleHolder savedStateHandleHolder) {
+      this.savedStateHandleHolder = Preconditions.checkNotNull(savedStateHandleHolder);
+      return this;
+    }
+
+    @Override
+    public App_HiltComponents.ActivityRetainedC build() {
+      Preconditions.checkBuilderRequirement(savedStateHandleHolder, SavedStateHandleHolder.class);
+      return new ActivityRetainedCImpl(singletonCImpl, savedStateHandleHolder);
+    }
+  }
+
+  private static final class ActivityCBuilder implements App_HiltComponents.ActivityC.Builder {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private Activity activity;
+
+    private ActivityCBuilder(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+    }
+
+    @Override
+    public ActivityCBuilder activity(Activity activity) {
+      this.activity = Preconditions.checkNotNull(activity);
+      return this;
+    }
+
+    @Override
+    public App_HiltComponents.ActivityC build() {
+      Preconditions.checkBuilderRequirement(activity, Activity.class);
+      return new ActivityCImpl(singletonCImpl, activityRetainedCImpl, activity);
+    }
+  }
+
+  private static final class FragmentCBuilder implements App_HiltComponents.FragmentC.Builder {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ActivityCImpl activityCImpl;
+
+    private Fragment fragment;
+
+    private FragmentCBuilder(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl, ActivityCImpl activityCImpl) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+      this.activityCImpl = activityCImpl;
+    }
+
+    @Override
+    public FragmentCBuilder fragment(Fragment fragment) {
+      this.fragment = Preconditions.checkNotNull(fragment);
+      return this;
+    }
+
+    @Override
+    public App_HiltComponents.FragmentC build() {
+      Preconditions.checkBuilderRequirement(fragment, Fragment.class);
+      return new FragmentCImpl(singletonCImpl, activityRetainedCImpl, activityCImpl, fragment);
+    }
+  }
+
+  private static final class ViewWithFragmentCBuilder implements App_HiltComponents.ViewWithFragmentC.Builder {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ActivityCImpl activityCImpl;
+
+    private final FragmentCImpl fragmentCImpl;
+
+    private View view;
+
+    private ViewWithFragmentCBuilder(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl, ActivityCImpl activityCImpl,
+        FragmentCImpl fragmentCImpl) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+      this.activityCImpl = activityCImpl;
+      this.fragmentCImpl = fragmentCImpl;
+    }
+
+    @Override
+    public ViewWithFragmentCBuilder view(View view) {
+      this.view = Preconditions.checkNotNull(view);
+      return this;
+    }
+
+    @Override
+    public App_HiltComponents.ViewWithFragmentC build() {
+      Preconditions.checkBuilderRequirement(view, View.class);
+      return new ViewWithFragmentCImpl(singletonCImpl, activityRetainedCImpl, activityCImpl, fragmentCImpl, view);
+    }
+  }
+
+  private static final class ViewCBuilder implements App_HiltComponents.ViewC.Builder {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ActivityCImpl activityCImpl;
+
+    private View view;
+
+    private ViewCBuilder(SingletonCImpl singletonCImpl, ActivityRetainedCImpl activityRetainedCImpl,
+        ActivityCImpl activityCImpl) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+      this.activityCImpl = activityCImpl;
+    }
+
+    @Override
+    public ViewCBuilder view(View view) {
+      this.view = Preconditions.checkNotNull(view);
+      return this;
+    }
+
+    @Override
+    public App_HiltComponents.ViewC build() {
+      Preconditions.checkBuilderRequirement(view, View.class);
+      return new ViewCImpl(singletonCImpl, activityRetainedCImpl, activityCImpl, view);
+    }
+  }
+
+  private static final class ViewModelCBuilder implements App_HiltComponents.ViewModelC.Builder {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private SavedStateHandle savedStateHandle;
+
+    private ViewModelLifecycle viewModelLifecycle;
+
+    private ViewModelCBuilder(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+    }
+
+    @Override
+    public ViewModelCBuilder savedStateHandle(SavedStateHandle handle) {
+      this.savedStateHandle = Preconditions.checkNotNull(handle);
+      return this;
+    }
+
+    @Override
+    public ViewModelCBuilder viewModelLifecycle(ViewModelLifecycle viewModelLifecycle) {
+      this.viewModelLifecycle = Preconditions.checkNotNull(viewModelLifecycle);
+      return this;
+    }
+
+    @Override
+    public App_HiltComponents.ViewModelC build() {
+      Preconditions.checkBuilderRequirement(savedStateHandle, SavedStateHandle.class);
+      Preconditions.checkBuilderRequirement(viewModelLifecycle, ViewModelLifecycle.class);
+      return new ViewModelCImpl(singletonCImpl, activityRetainedCImpl, savedStateHandle, viewModelLifecycle);
+    }
+  }
+
+  private static final class ServiceCBuilder implements App_HiltComponents.ServiceC.Builder {
+    private final SingletonCImpl singletonCImpl;
+
+    private Service service;
+
+    private ServiceCBuilder(SingletonCImpl singletonCImpl) {
+      this.singletonCImpl = singletonCImpl;
+    }
+
+    @Override
+    public ServiceCBuilder service(Service service) {
+      this.service = Preconditions.checkNotNull(service);
+      return this;
+    }
+
+    @Override
+    public App_HiltComponents.ServiceC build() {
+      Preconditions.checkBuilderRequirement(service, Service.class);
+      return new ServiceCImpl(singletonCImpl, service);
+    }
+  }
+
+  private static final class ViewWithFragmentCImpl extends App_HiltComponents.ViewWithFragmentC {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ActivityCImpl activityCImpl;
+
+    private final FragmentCImpl fragmentCImpl;
+
+    private final ViewWithFragmentCImpl viewWithFragmentCImpl = this;
+
+    private ViewWithFragmentCImpl(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl, ActivityCImpl activityCImpl,
+        FragmentCImpl fragmentCImpl, View viewParam) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+      this.activityCImpl = activityCImpl;
+      this.fragmentCImpl = fragmentCImpl;
+
+
+    }
+  }
+
+  private static final class FragmentCImpl extends App_HiltComponents.FragmentC {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ActivityCImpl activityCImpl;
+
+    private final FragmentCImpl fragmentCImpl = this;
+
+    private FragmentCImpl(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl, ActivityCImpl activityCImpl,
+        Fragment fragmentParam) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+      this.activityCImpl = activityCImpl;
+
+
+    }
+
+    @Override
+    public DefaultViewModelFactories.InternalFactoryFactory getHiltInternalFactoryFactory() {
+      return activityCImpl.getHiltInternalFactoryFactory();
+    }
+
+    @Override
+    public ViewWithFragmentComponentBuilder viewWithFragmentComponentBuilder() {
+      return new ViewWithFragmentCBuilder(singletonCImpl, activityRetainedCImpl, activityCImpl, fragmentCImpl);
+    }
+  }
+
+  private static final class ViewCImpl extends App_HiltComponents.ViewC {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ActivityCImpl activityCImpl;
+
+    private final ViewCImpl viewCImpl = this;
+
+    private ViewCImpl(SingletonCImpl singletonCImpl, ActivityRetainedCImpl activityRetainedCImpl,
+        ActivityCImpl activityCImpl, View viewParam) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+      this.activityCImpl = activityCImpl;
+
+
+    }
+  }
+
+  private static final class ActivityCImpl extends App_HiltComponents.ActivityC {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ActivityCImpl activityCImpl = this;
+
+    private ActivityCImpl(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl, Activity activityParam) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+
+
+    }
+
+    @Override
+    public void injectMainActivity(MainActivity mainActivity) {
+      injectMainActivity2(mainActivity);
+    }
+
+    @Override
+    public DefaultViewModelFactories.InternalFactoryFactory getHiltInternalFactoryFactory() {
+      return DefaultViewModelFactories_InternalFactoryFactory_Factory.newInstance(getViewModelKeys(), new ViewModelCBuilder(singletonCImpl, activityRetainedCImpl));
+    }
+
+    @Override
+    public Map<Class<?>, Boolean> getViewModelKeys() {
+      return LazyClassKeyMap.<Boolean>of(MapBuilder.<String, Boolean>newMapBuilder(9).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_deposit_AddDepositViewModel, AddDepositViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_AddHoldingViewModel, AddHoldingViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_earnings_EarningsViewModel, EarningsViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_deposit_EditDepositViewModel, EditDepositViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_EditHoldingViewModel, EditHoldingViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_HoldingDetailViewModel, HoldingDetailViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_HoldingsViewModel, HoldingsViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_home_HomeViewModel, HomeViewModel_HiltModules.KeyModule.provide()).put(LazyClassKeyProvider.com_financial_freedom_ui_settings_SettingsViewModel, SettingsViewModel_HiltModules.KeyModule.provide()).build());
+    }
+
+    @Override
+    public ViewModelComponentBuilder getViewModelComponentBuilder() {
+      return new ViewModelCBuilder(singletonCImpl, activityRetainedCImpl);
+    }
+
+    @Override
+    public FragmentComponentBuilder fragmentComponentBuilder() {
+      return new FragmentCBuilder(singletonCImpl, activityRetainedCImpl, activityCImpl);
+    }
+
+    @Override
+    public ViewComponentBuilder viewComponentBuilder() {
+      return new ViewCBuilder(singletonCImpl, activityRetainedCImpl, activityCImpl);
+    }
+
+    private MainActivity injectMainActivity2(MainActivity instance) {
+      MainActivity_MembersInjector.injectAccountManager(instance, singletonCImpl.accountManagerProvider.get());
+      return instance;
+    }
+
+    @IdentifierNameString
+    private static final class LazyClassKeyProvider {
+      static String com_financial_freedom_ui_settings_SettingsViewModel = "com.financial.freedom.ui.settings.SettingsViewModel";
+
+      static String com_financial_freedom_ui_holdings_deposit_EditDepositViewModel = "com.financial.freedom.ui.holdings.deposit.EditDepositViewModel";
+
+      static String com_financial_freedom_ui_holdings_HoldingsViewModel = "com.financial.freedom.ui.holdings.HoldingsViewModel";
+
+      static String com_financial_freedom_ui_holdings_EditHoldingViewModel = "com.financial.freedom.ui.holdings.EditHoldingViewModel";
+
+      static String com_financial_freedom_ui_holdings_HoldingDetailViewModel = "com.financial.freedom.ui.holdings.HoldingDetailViewModel";
+
+      static String com_financial_freedom_ui_holdings_deposit_AddDepositViewModel = "com.financial.freedom.ui.holdings.deposit.AddDepositViewModel";
+
+      static String com_financial_freedom_ui_holdings_AddHoldingViewModel = "com.financial.freedom.ui.holdings.AddHoldingViewModel";
+
+      static String com_financial_freedom_ui_earnings_EarningsViewModel = "com.financial.freedom.ui.earnings.EarningsViewModel";
+
+      static String com_financial_freedom_ui_home_HomeViewModel = "com.financial.freedom.ui.home.HomeViewModel";
+
+      @KeepFieldType
+      SettingsViewModel com_financial_freedom_ui_settings_SettingsViewModel2;
+
+      @KeepFieldType
+      EditDepositViewModel com_financial_freedom_ui_holdings_deposit_EditDepositViewModel2;
+
+      @KeepFieldType
+      HoldingsViewModel com_financial_freedom_ui_holdings_HoldingsViewModel2;
+
+      @KeepFieldType
+      EditHoldingViewModel com_financial_freedom_ui_holdings_EditHoldingViewModel2;
+
+      @KeepFieldType
+      HoldingDetailViewModel com_financial_freedom_ui_holdings_HoldingDetailViewModel2;
+
+      @KeepFieldType
+      AddDepositViewModel com_financial_freedom_ui_holdings_deposit_AddDepositViewModel2;
+
+      @KeepFieldType
+      AddHoldingViewModel com_financial_freedom_ui_holdings_AddHoldingViewModel2;
+
+      @KeepFieldType
+      EarningsViewModel com_financial_freedom_ui_earnings_EarningsViewModel2;
+
+      @KeepFieldType
+      HomeViewModel com_financial_freedom_ui_home_HomeViewModel2;
+    }
+  }
+
+  private static final class ViewModelCImpl extends App_HiltComponents.ViewModelC {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl;
+
+    private final ViewModelCImpl viewModelCImpl = this;
+
+    private Provider<AddDepositViewModel> addDepositViewModelProvider;
+
+    private Provider<AddHoldingViewModel> addHoldingViewModelProvider;
+
+    private Provider<EarningsViewModel> earningsViewModelProvider;
+
+    private Provider<EditDepositViewModel> editDepositViewModelProvider;
+
+    private Provider<EditHoldingViewModel> editHoldingViewModelProvider;
+
+    private Provider<HoldingDetailViewModel> holdingDetailViewModelProvider;
+
+    private Provider<HoldingsViewModel> holdingsViewModelProvider;
+
+    private Provider<HomeViewModel> homeViewModelProvider;
+
+    private Provider<SettingsViewModel> settingsViewModelProvider;
+
+    private ViewModelCImpl(SingletonCImpl singletonCImpl,
+        ActivityRetainedCImpl activityRetainedCImpl, SavedStateHandle savedStateHandleParam,
+        ViewModelLifecycle viewModelLifecycleParam) {
+      this.singletonCImpl = singletonCImpl;
+      this.activityRetainedCImpl = activityRetainedCImpl;
+
+      initialize(savedStateHandleParam, viewModelLifecycleParam);
+
+    }
+
+    @SuppressWarnings("unchecked")
+    private void initialize(final SavedStateHandle savedStateHandleParam,
+        final ViewModelLifecycle viewModelLifecycleParam) {
+      this.addDepositViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 0);
+      this.addHoldingViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 1);
+      this.earningsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 2);
+      this.editDepositViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 3);
+      this.editHoldingViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 4);
+      this.holdingDetailViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 5);
+      this.holdingsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 6);
+      this.homeViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 7);
+      this.settingsViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 8);
+    }
+
+    @Override
+    public Map<Class<?>, javax.inject.Provider<ViewModel>> getHiltViewModelMap() {
+      return LazyClassKeyMap.<javax.inject.Provider<ViewModel>>of(MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(9).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_deposit_AddDepositViewModel, ((Provider) addDepositViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_AddHoldingViewModel, ((Provider) addHoldingViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_earnings_EarningsViewModel, ((Provider) earningsViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_deposit_EditDepositViewModel, ((Provider) editDepositViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_EditHoldingViewModel, ((Provider) editHoldingViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_HoldingDetailViewModel, ((Provider) holdingDetailViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_holdings_HoldingsViewModel, ((Provider) holdingsViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_home_HomeViewModel, ((Provider) homeViewModelProvider)).put(LazyClassKeyProvider.com_financial_freedom_ui_settings_SettingsViewModel, ((Provider) settingsViewModelProvider)).build());
+    }
+
+    @Override
+    public Map<Class<?>, Object> getHiltViewModelAssistedMap() {
+      return Collections.<Class<?>, Object>emptyMap();
+    }
+
+    @IdentifierNameString
+    private static final class LazyClassKeyProvider {
+      static String com_financial_freedom_ui_holdings_HoldingDetailViewModel = "com.financial.freedom.ui.holdings.HoldingDetailViewModel";
+
+      static String com_financial_freedom_ui_holdings_deposit_AddDepositViewModel = "com.financial.freedom.ui.holdings.deposit.AddDepositViewModel";
+
+      static String com_financial_freedom_ui_earnings_EarningsViewModel = "com.financial.freedom.ui.earnings.EarningsViewModel";
+
+      static String com_financial_freedom_ui_holdings_HoldingsViewModel = "com.financial.freedom.ui.holdings.HoldingsViewModel";
+
+      static String com_financial_freedom_ui_home_HomeViewModel = "com.financial.freedom.ui.home.HomeViewModel";
+
+      static String com_financial_freedom_ui_holdings_EditHoldingViewModel = "com.financial.freedom.ui.holdings.EditHoldingViewModel";
+
+      static String com_financial_freedom_ui_holdings_AddHoldingViewModel = "com.financial.freedom.ui.holdings.AddHoldingViewModel";
+
+      static String com_financial_freedom_ui_settings_SettingsViewModel = "com.financial.freedom.ui.settings.SettingsViewModel";
+
+      static String com_financial_freedom_ui_holdings_deposit_EditDepositViewModel = "com.financial.freedom.ui.holdings.deposit.EditDepositViewModel";
+
+      @KeepFieldType
+      HoldingDetailViewModel com_financial_freedom_ui_holdings_HoldingDetailViewModel2;
+
+      @KeepFieldType
+      AddDepositViewModel com_financial_freedom_ui_holdings_deposit_AddDepositViewModel2;
+
+      @KeepFieldType
+      EarningsViewModel com_financial_freedom_ui_earnings_EarningsViewModel2;
+
+      @KeepFieldType
+      HoldingsViewModel com_financial_freedom_ui_holdings_HoldingsViewModel2;
+
+      @KeepFieldType
+      HomeViewModel com_financial_freedom_ui_home_HomeViewModel2;
+
+      @KeepFieldType
+      EditHoldingViewModel com_financial_freedom_ui_holdings_EditHoldingViewModel2;
+
+      @KeepFieldType
+      AddHoldingViewModel com_financial_freedom_ui_holdings_AddHoldingViewModel2;
+
+      @KeepFieldType
+      SettingsViewModel com_financial_freedom_ui_settings_SettingsViewModel2;
+
+      @KeepFieldType
+      EditDepositViewModel com_financial_freedom_ui_holdings_deposit_EditDepositViewModel2;
+    }
+
+    private static final class SwitchingProvider<T> implements Provider<T> {
+      private final SingletonCImpl singletonCImpl;
+
+      private final ActivityRetainedCImpl activityRetainedCImpl;
+
+      private final ViewModelCImpl viewModelCImpl;
+
+      private final int id;
+
+      SwitchingProvider(SingletonCImpl singletonCImpl, ActivityRetainedCImpl activityRetainedCImpl,
+          ViewModelCImpl viewModelCImpl, int id) {
+        this.singletonCImpl = singletonCImpl;
+        this.activityRetainedCImpl = activityRetainedCImpl;
+        this.viewModelCImpl = viewModelCImpl;
+        this.id = id;
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public T get() {
+        switch (id) {
+          case 0: // com.financial.freedom.ui.holdings.deposit.AddDepositViewModel 
+          return (T) new AddDepositViewModel(singletonCImpl.depositDao(), singletonCImpl.backfillEngineProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          case 1: // com.financial.freedom.ui.holdings.AddHoldingViewModel 
+          return (T) new AddHoldingViewModel(singletonCImpl.holdingDao(), singletonCImpl.priceServiceProvider.get(), singletonCImpl.backfillEngineProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          case 2: // com.financial.freedom.ui.earnings.EarningsViewModel 
+          return (T) new EarningsViewModel(singletonCImpl.summaryRepositoryProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          case 3: // com.financial.freedom.ui.holdings.deposit.EditDepositViewModel 
+          return (T) new EditDepositViewModel(singletonCImpl.depositDao(), singletonCImpl.backfillEngineProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          case 4: // com.financial.freedom.ui.holdings.EditHoldingViewModel 
+          return (T) new EditHoldingViewModel(singletonCImpl.holdingDao(), singletonCImpl.backfillEngineProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          case 5: // com.financial.freedom.ui.holdings.HoldingDetailViewModel 
+          return (T) new HoldingDetailViewModel(singletonCImpl.holdingDao(), singletonCImpl.priceSnapshotDao(), singletonCImpl.transactionDao(), singletonCImpl.priceServiceProvider.get(), singletonCImpl.valuationCalculator(), singletonCImpl.backfillEngineProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          case 6: // com.financial.freedom.ui.holdings.HoldingsViewModel 
+          return (T) new HoldingsViewModel(singletonCImpl.depositRepositoryProvider.get(), singletonCImpl.holdingRepositoryProvider.get(), singletonCImpl.exchangeRateRepositoryProvider.get(), singletonCImpl.priceSnapshotDao(), singletonCImpl.valuationCalculator(), new InterestCalculator(), singletonCImpl.accountManagerProvider.get());
+
+          case 7: // com.financial.freedom.ui.home.HomeViewModel 
+          return (T) new HomeViewModel(singletonCImpl.summaryRepositoryProvider.get(), singletonCImpl.depositDao(), singletonCImpl.holdingDao(), singletonCImpl.priceSnapshotDao(), singletonCImpl.exchangeRateDao(), singletonCImpl.dailyBreakdownItemDao(), singletonCImpl.backfillEngineProvider.get(), singletonCImpl.valuationCalculator(), new InterestCalculator(), singletonCImpl.priceServiceProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          case 8: // com.financial.freedom.ui.settings.SettingsViewModel 
+          return (T) new SettingsViewModel(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.csvExporterProvider.get(), singletonCImpl.csvImporterProvider.get(), singletonCImpl.exchangeRateDao(), singletonCImpl.provideDatabaseProvider.get(), singletonCImpl.accountManagerProvider.get(), singletonCImpl.testDataGeneratorProvider.get());
+
+          default: throw new AssertionError(id);
+        }
+      }
+    }
+  }
+
+  private static final class ActivityRetainedCImpl extends App_HiltComponents.ActivityRetainedC {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ActivityRetainedCImpl activityRetainedCImpl = this;
+
+    private Provider<ActivityRetainedLifecycle> provideActivityRetainedLifecycleProvider;
+
+    private ActivityRetainedCImpl(SingletonCImpl singletonCImpl,
+        SavedStateHandleHolder savedStateHandleHolderParam) {
+      this.singletonCImpl = singletonCImpl;
+
+      initialize(savedStateHandleHolderParam);
+
+    }
+
+    @SuppressWarnings("unchecked")
+    private void initialize(final SavedStateHandleHolder savedStateHandleHolderParam) {
+      this.provideActivityRetainedLifecycleProvider = DoubleCheck.provider(new SwitchingProvider<ActivityRetainedLifecycle>(singletonCImpl, activityRetainedCImpl, 0));
+    }
+
+    @Override
+    public ActivityComponentBuilder activityComponentBuilder() {
+      return new ActivityCBuilder(singletonCImpl, activityRetainedCImpl);
+    }
+
+    @Override
+    public ActivityRetainedLifecycle getActivityRetainedLifecycle() {
+      return provideActivityRetainedLifecycleProvider.get();
+    }
+
+    private static final class SwitchingProvider<T> implements Provider<T> {
+      private final SingletonCImpl singletonCImpl;
+
+      private final ActivityRetainedCImpl activityRetainedCImpl;
+
+      private final int id;
+
+      SwitchingProvider(SingletonCImpl singletonCImpl, ActivityRetainedCImpl activityRetainedCImpl,
+          int id) {
+        this.singletonCImpl = singletonCImpl;
+        this.activityRetainedCImpl = activityRetainedCImpl;
+        this.id = id;
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public T get() {
+        switch (id) {
+          case 0: // dagger.hilt.android.ActivityRetainedLifecycle 
+          return (T) ActivityRetainedComponentManager_LifecycleModule_ProvideActivityRetainedLifecycleFactory.provideActivityRetainedLifecycle();
+
+          default: throw new AssertionError(id);
+        }
+      }
+    }
+  }
+
+  private static final class ServiceCImpl extends App_HiltComponents.ServiceC {
+    private final SingletonCImpl singletonCImpl;
+
+    private final ServiceCImpl serviceCImpl = this;
+
+    private ServiceCImpl(SingletonCImpl singletonCImpl, Service serviceParam) {
+      this.singletonCImpl = singletonCImpl;
+
+
+    }
+  }
+
+  private static final class SingletonCImpl extends App_HiltComponents.SingletonC {
+    private final ApplicationContextModule applicationContextModule;
+
+    private final SingletonCImpl singletonCImpl = this;
+
+    private Provider<AppDatabase> provideDatabaseProvider;
+
+    private Provider<AccountManager> accountManagerProvider;
+
+    private Provider<OkHttpClient> provideOkHttpClientProvider;
+
+    private Provider<AStockProvider> aStockProvider;
+
+    private Provider<USStockProvider> uSStockProvider;
+
+    private Provider<HKStockProvider> hKStockProvider;
+
+    private Provider<CNFundProvider> cNFundProvider;
+
+    private Provider<GoldProvider> goldProvider;
+
+    private Provider<ExchangeRateProvider> exchangeRateProvider;
+
+    private Provider<PriceService> priceServiceProvider;
+
+    private Provider<BackfillEngine> backfillEngineProvider;
+
+    private Provider<SummaryRepository> summaryRepositoryProvider;
+
+    private Provider<DepositRepository> depositRepositoryProvider;
+
+    private Provider<HoldingRepository> holdingRepositoryProvider;
+
+    private Provider<ExchangeRateRepository> exchangeRateRepositoryProvider;
+
+    private Provider<CsvExporter> csvExporterProvider;
+
+    private Provider<CsvImporter> csvImporterProvider;
+
+    private Provider<TestDataGenerator> testDataGeneratorProvider;
+
+    private SingletonCImpl(ApplicationContextModule applicationContextModuleParam) {
+      this.applicationContextModule = applicationContextModuleParam;
+      initialize(applicationContextModuleParam);
+
+    }
+
+    private AccountDao accountDao() {
+      return DatabaseModule_ProvideAccountDaoFactory.provideAccountDao(provideDatabaseProvider.get());
+    }
+
+    private DepositDao depositDao() {
+      return DatabaseModule_ProvideDepositDaoFactory.provideDepositDao(provideDatabaseProvider.get());
+    }
+
+    private HoldingDao holdingDao() {
+      return DatabaseModule_ProvideHoldingDaoFactory.provideHoldingDao(provideDatabaseProvider.get());
+    }
+
+    private PriceSnapshotDao priceSnapshotDao() {
+      return DatabaseModule_ProvidePriceSnapshotDaoFactory.providePriceSnapshotDao(provideDatabaseProvider.get());
+    }
+
+    private TransactionDao transactionDao() {
+      return DatabaseModule_ProvideTransactionDaoFactory.provideTransactionDao(provideDatabaseProvider.get());
+    }
+
+    private DailySummaryDao dailySummaryDao() {
+      return DatabaseModule_ProvideDailySummaryDaoFactory.provideDailySummaryDao(provideDatabaseProvider.get());
+    }
+
+    private DailyBreakdownItemDao dailyBreakdownItemDao() {
+      return DatabaseModule_ProvideDailyBreakdownItemDaoFactory.provideDailyBreakdownItemDao(provideDatabaseProvider.get());
+    }
+
+    private ExchangeRateDao exchangeRateDao() {
+      return DatabaseModule_ProvideExchangeRateDaoFactory.provideExchangeRateDao(provideDatabaseProvider.get());
+    }
+
+    private ValuationCalculator valuationCalculator() {
+      return new ValuationCalculator(new InterestCalculator());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void initialize(final ApplicationContextModule applicationContextModuleParam) {
+      this.provideDatabaseProvider = DoubleCheck.provider(new SwitchingProvider<AppDatabase>(singletonCImpl, 1));
+      this.accountManagerProvider = DoubleCheck.provider(new SwitchingProvider<AccountManager>(singletonCImpl, 0));
+      this.provideOkHttpClientProvider = DoubleCheck.provider(new SwitchingProvider<OkHttpClient>(singletonCImpl, 5));
+      this.aStockProvider = DoubleCheck.provider(new SwitchingProvider<AStockProvider>(singletonCImpl, 4));
+      this.uSStockProvider = DoubleCheck.provider(new SwitchingProvider<USStockProvider>(singletonCImpl, 6));
+      this.hKStockProvider = DoubleCheck.provider(new SwitchingProvider<HKStockProvider>(singletonCImpl, 7));
+      this.cNFundProvider = DoubleCheck.provider(new SwitchingProvider<CNFundProvider>(singletonCImpl, 8));
+      this.goldProvider = DoubleCheck.provider(new SwitchingProvider<GoldProvider>(singletonCImpl, 9));
+      this.exchangeRateProvider = DoubleCheck.provider(new SwitchingProvider<ExchangeRateProvider>(singletonCImpl, 10));
+      this.priceServiceProvider = DoubleCheck.provider(new SwitchingProvider<PriceService>(singletonCImpl, 3));
+      this.backfillEngineProvider = DoubleCheck.provider(new SwitchingProvider<BackfillEngine>(singletonCImpl, 2));
+      this.summaryRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<SummaryRepository>(singletonCImpl, 11));
+      this.depositRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<DepositRepository>(singletonCImpl, 12));
+      this.holdingRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<HoldingRepository>(singletonCImpl, 13));
+      this.exchangeRateRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<ExchangeRateRepository>(singletonCImpl, 14));
+      this.csvExporterProvider = DoubleCheck.provider(new SwitchingProvider<CsvExporter>(singletonCImpl, 15));
+      this.csvImporterProvider = DoubleCheck.provider(new SwitchingProvider<CsvImporter>(singletonCImpl, 16));
+      this.testDataGeneratorProvider = DoubleCheck.provider(new SwitchingProvider<TestDataGenerator>(singletonCImpl, 17));
+    }
+
+    @Override
+    public void injectApp(App app) {
+    }
+
+    @Override
+    public Set<Boolean> getDisableFragmentGetContextFix() {
+      return Collections.<Boolean>emptySet();
+    }
+
+    @Override
+    public ActivityRetainedComponentBuilder retainedComponentBuilder() {
+      return new ActivityRetainedCBuilder(singletonCImpl);
+    }
+
+    @Override
+    public ServiceComponentBuilder serviceComponentBuilder() {
+      return new ServiceCBuilder(singletonCImpl);
+    }
+
+    private static final class SwitchingProvider<T> implements Provider<T> {
+      private final SingletonCImpl singletonCImpl;
+
+      private final int id;
+
+      SwitchingProvider(SingletonCImpl singletonCImpl, int id) {
+        this.singletonCImpl = singletonCImpl;
+        this.id = id;
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public T get() {
+        switch (id) {
+          case 0: // com.financial.freedom.domain.account.AccountManager 
+          return (T) new AccountManager(singletonCImpl.accountDao(), singletonCImpl.depositDao(), singletonCImpl.holdingDao(), singletonCImpl.priceSnapshotDao(), singletonCImpl.transactionDao(), singletonCImpl.dailySummaryDao(), singletonCImpl.dailyBreakdownItemDao(), ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
+
+          case 1: // com.financial.freedom.data.local.AppDatabase 
+          return (T) DatabaseModule_ProvideDatabaseFactory.provideDatabase(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
+
+          case 2: // com.financial.freedom.domain.calculator.BackfillEngine 
+          return (T) new BackfillEngine(singletonCImpl.depositDao(), singletonCImpl.holdingDao(), singletonCImpl.dailySummaryDao(), singletonCImpl.dailyBreakdownItemDao(), singletonCImpl.exchangeRateDao(), singletonCImpl.priceSnapshotDao(), singletonCImpl.priceServiceProvider.get(), singletonCImpl.valuationCalculator(), new InterestCalculator());
+
+          case 3: // com.financial.freedom.data.remote.PriceService 
+          return (T) new PriceService(singletonCImpl.aStockProvider.get(), singletonCImpl.uSStockProvider.get(), singletonCImpl.hKStockProvider.get(), singletonCImpl.cNFundProvider.get(), singletonCImpl.goldProvider.get(), singletonCImpl.exchangeRateProvider.get());
+
+          case 4: // com.financial.freedom.data.remote.AStockProvider 
+          return (T) new AStockProvider(singletonCImpl.provideOkHttpClientProvider.get());
+
+          case 5: // okhttp3.OkHttpClient 
+          return (T) NetworkModule_ProvideOkHttpClientFactory.provideOkHttpClient();
+
+          case 6: // com.financial.freedom.data.remote.USStockProvider 
+          return (T) new USStockProvider(singletonCImpl.provideOkHttpClientProvider.get());
+
+          case 7: // com.financial.freedom.data.remote.HKStockProvider 
+          return (T) new HKStockProvider(singletonCImpl.provideOkHttpClientProvider.get());
+
+          case 8: // com.financial.freedom.data.remote.CNFundProvider 
+          return (T) new CNFundProvider(singletonCImpl.provideOkHttpClientProvider.get());
+
+          case 9: // com.financial.freedom.data.remote.GoldProvider 
+          return (T) new GoldProvider(singletonCImpl.provideOkHttpClientProvider.get(), singletonCImpl.exchangeRateDao());
+
+          case 10: // com.financial.freedom.data.remote.ExchangeRateProvider 
+          return (T) new ExchangeRateProvider(singletonCImpl.provideOkHttpClientProvider.get());
+
+          case 11: // com.financial.freedom.data.repository.SummaryRepository 
+          return (T) new SummaryRepository(singletonCImpl.dailySummaryDao(), singletonCImpl.dailyBreakdownItemDao());
+
+          case 12: // com.financial.freedom.data.repository.DepositRepository 
+          return (T) new DepositRepository(singletonCImpl.depositDao());
+
+          case 13: // com.financial.freedom.data.repository.HoldingRepository 
+          return (T) new HoldingRepository(singletonCImpl.holdingDao());
+
+          case 14: // com.financial.freedom.data.repository.ExchangeRateRepository 
+          return (T) new ExchangeRateRepository(singletonCImpl.exchangeRateDao());
+
+          case 15: // com.financial.freedom.data.csv.CsvExporter 
+          return (T) new CsvExporter(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.depositDao(), singletonCImpl.holdingDao(), singletonCImpl.transactionDao());
+
+          case 16: // com.financial.freedom.data.csv.CsvImporter 
+          return (T) new CsvImporter(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.depositDao(), singletonCImpl.holdingDao());
+
+          case 17: // com.financial.freedom.data.TestDataGenerator 
+          return (T) new TestDataGenerator(singletonCImpl.depositDao(), singletonCImpl.holdingDao(), singletonCImpl.priceSnapshotDao(), singletonCImpl.transactionDao(), singletonCImpl.exchangeRateDao(), singletonCImpl.backfillEngineProvider.get(), singletonCImpl.accountManagerProvider.get());
+
+          default: throw new AssertionError(id);
+        }
+      }
+    }
+  }
+}

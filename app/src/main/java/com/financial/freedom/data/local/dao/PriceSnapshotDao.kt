@@ -30,4 +30,7 @@ interface PriceSnapshotDao {
 
     @Query("DELETE FROM price_snapshots WHERE accountId = :accountId")
     suspend fun deleteByAccountId(accountId: Long)
+
+    @Query("DELETE FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId")
+    suspend fun deleteByHoldingId(holdingId: Long, accountId: Long)
 }

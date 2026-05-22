@@ -12,12 +12,17 @@ import javax.inject.Singleton
 class PriceService @Inject constructor(
     private val aStockProvider: AStockProvider,
     private val usStockProvider: USStockProvider,
+    private val hkStockProvider: HKStockProvider,
     private val cnFundProvider: CNFundProvider,
     private val goldProvider: GoldProvider,
     private val exchangeRateProvider: ExchangeRateProvider
 ) {
     private fun providerFor(type: String, market: String): PriceProvider = when (type) {
-        "STOCK" -> if (market == "US" || market == "HK") usStockProvider else aStockProvider
+        "STOCK" -> when (market) {
+            "HK" -> hkStockProvider
+            "US" -> usStockProvider
+            else -> aStockProvider
+        }
         "FUND" -> cnFundProvider
         "GOLD" -> goldProvider
         else -> aStockProvider

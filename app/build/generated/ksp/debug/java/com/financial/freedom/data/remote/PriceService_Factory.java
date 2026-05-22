@@ -26,6 +26,8 @@ public final class PriceService_Factory implements Factory<PriceService> {
 
   private final Provider<USStockProvider> usStockProvider;
 
+  private final Provider<HKStockProvider> hkStockProvider;
+
   private final Provider<CNFundProvider> cnFundProvider;
 
   private final Provider<GoldProvider> goldProvider;
@@ -33,10 +35,12 @@ public final class PriceService_Factory implements Factory<PriceService> {
   private final Provider<ExchangeRateProvider> exchangeRateProvider;
 
   public PriceService_Factory(Provider<AStockProvider> aStockProvider,
-      Provider<USStockProvider> usStockProvider, Provider<CNFundProvider> cnFundProvider,
-      Provider<GoldProvider> goldProvider, Provider<ExchangeRateProvider> exchangeRateProvider) {
+      Provider<USStockProvider> usStockProvider, Provider<HKStockProvider> hkStockProvider,
+      Provider<CNFundProvider> cnFundProvider, Provider<GoldProvider> goldProvider,
+      Provider<ExchangeRateProvider> exchangeRateProvider) {
     this.aStockProvider = aStockProvider;
     this.usStockProvider = usStockProvider;
+    this.hkStockProvider = hkStockProvider;
     this.cnFundProvider = cnFundProvider;
     this.goldProvider = goldProvider;
     this.exchangeRateProvider = exchangeRateProvider;
@@ -44,18 +48,20 @@ public final class PriceService_Factory implements Factory<PriceService> {
 
   @Override
   public PriceService get() {
-    return newInstance(aStockProvider.get(), usStockProvider.get(), cnFundProvider.get(), goldProvider.get(), exchangeRateProvider.get());
+    return newInstance(aStockProvider.get(), usStockProvider.get(), hkStockProvider.get(), cnFundProvider.get(), goldProvider.get(), exchangeRateProvider.get());
   }
 
   public static PriceService_Factory create(Provider<AStockProvider> aStockProvider,
-      Provider<USStockProvider> usStockProvider, Provider<CNFundProvider> cnFundProvider,
-      Provider<GoldProvider> goldProvider, Provider<ExchangeRateProvider> exchangeRateProvider) {
-    return new PriceService_Factory(aStockProvider, usStockProvider, cnFundProvider, goldProvider, exchangeRateProvider);
+      Provider<USStockProvider> usStockProvider, Provider<HKStockProvider> hkStockProvider,
+      Provider<CNFundProvider> cnFundProvider, Provider<GoldProvider> goldProvider,
+      Provider<ExchangeRateProvider> exchangeRateProvider) {
+    return new PriceService_Factory(aStockProvider, usStockProvider, hkStockProvider, cnFundProvider, goldProvider, exchangeRateProvider);
   }
 
   public static PriceService newInstance(AStockProvider aStockProvider,
-      USStockProvider usStockProvider, CNFundProvider cnFundProvider, GoldProvider goldProvider,
+      USStockProvider usStockProvider, HKStockProvider hkStockProvider,
+      CNFundProvider cnFundProvider, GoldProvider goldProvider,
       ExchangeRateProvider exchangeRateProvider) {
-    return new PriceService(aStockProvider, usStockProvider, cnFundProvider, goldProvider, exchangeRateProvider);
+    return new PriceService(aStockProvider, usStockProvider, hkStockProvider, cnFundProvider, goldProvider, exchangeRateProvider);
   }
 }

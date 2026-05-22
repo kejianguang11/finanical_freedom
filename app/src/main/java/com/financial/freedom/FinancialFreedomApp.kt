@@ -147,19 +147,19 @@ fun FinancialFreedomApp(accountManager: AccountManager) {
                     Text("新增资产", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(16.dp))
 
-                    AddSheetItem("💰 存款") {
+                    AddSheetItem("存款") {
                         showAddSheet = false
                         navController.navigate(Route.AddDeposit)
                     }
-                    AddSheetItem("📈 股票") {
+                    AddSheetItem("股票") {
                         showAddSheet = false
                         navController.navigate(Route.AddHolding("STOCK"))
                     }
-                    AddSheetItem("💵 基金") {
+                    AddSheetItem("基金") {
                         showAddSheet = false
                         navController.navigate(Route.AddHolding("FUND"))
                     }
-                    AddSheetItem("🥇 黄金") {
+                    AddSheetItem("黄金") {
                         showAddSheet = false
                         navController.navigate(Route.AddHolding("GOLD"))
                     }
