@@ -17,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -188,17 +189,29 @@ class HoldingsViewModel @Inject constructor(
                 }
             }
             viewModelScope.launch {
-                holdingRepository.getByType("STOCK", accountId).collect { stocks ->
+                combine(
+                    holdingRepository.getByType("STOCK", accountId),
+                    priceSnapshotDao.observeCount(accountId)
+                ) { stocks, _ -> stocks
+                }.collect { stocks ->
                     updateHoldingDisplays("STOCK", stocks, accountId)
                 }
             }
             viewModelScope.launch {
-                holdingRepository.getByType("FUND", accountId).collect { funds ->
+                combine(
+                    holdingRepository.getByType("FUND", accountId),
+                    priceSnapshotDao.observeCount(accountId)
+                ) { funds, _ -> funds
+                }.collect { funds ->
                     updateHoldingDisplays("FUND", funds, accountId)
                 }
             }
             viewModelScope.launch {
-                holdingRepository.getByType("GOLD", accountId).collect { golds ->
+                combine(
+                    holdingRepository.getByType("GOLD", accountId),
+                    priceSnapshotDao.observeCount(accountId)
+                ) { golds, _ -> golds
+                }.collect { golds ->
                     updateHoldingDisplays("GOLD", golds, accountId)
                 }
             }
@@ -329,7 +342,14 @@ class HoldingsViewModel @Inject constructor(
                 totalCost.divide(totalQuantity, 4, RoundingMode.HALF_UP)
             else first.costPrice
 
-            val latestSnapshot = priceSnapshotDao.getLatest(first.id, accountId)
+            // 遍历组内所有持仓找最新价格快照，而非只看 first
+            var latestSnapshot: com.financial.freedom.data.local.entity.PriceSnapshot? = null
+            for (h in group) {
+                val snap = priceSnapshotDao.getLatest(h.id, accountId)
+                if (snap != null && (latestSnapshot == null || snap.date > latestSnapshot!!.date)) {
+                    latestSnapshot = snap
+                }
+            }
             val currentPrice = latestSnapshot?.unitPrice ?: first.costPrice
 
             val rate = if (first.currency == "CNY") BigDecimal.ONE
@@ -343,9 +363,16 @@ class HoldingsViewModel @Inject constructor(
                     .multiply(BigDecimal(100))
             else BigDecimal.ZERO
 
-            val prevPrice = priceSnapshotDao.getByHoldingAndDate(first.id, yesterday, accountId)?.unitPrice
-                ?: priceSnapshotDao.getLatestBefore(first.id, today, accountId)?.unitPrice
-                ?: currentPrice
+            // 遍历组内所有持仓找昨日/最近历史价格
+            var prevPriceSnapshot: com.financial.freedom.data.local.entity.PriceSnapshot? = null
+            for (h in group) {
+                val snap = priceSnapshotDao.getByHoldingAndDate(h.id, yesterday, accountId)
+                    ?: priceSnapshotDao.getLatestBefore(h.id, today, accountId)
+                if (snap != null && (prevPriceSnapshot == null || snap.date > prevPriceSnapshot!!.date)) {
+                    prevPriceSnapshot = snap
+                }
+            }
+            val prevPrice = prevPriceSnapshot?.unitPrice ?: currentPrice
             val todayChange = currentPrice.subtract(prevPrice).multiply(totalQuantity).multiply(rate)
             val todayChangePct = if (prevPrice.compareTo(BigDecimal.ZERO) > 0)
                 currentPrice.subtract(prevPrice).divide(prevPrice, 4, RoundingMode.HALF_UP)
@@ -389,11 +416,18 @@ class HoldingsViewModel @Inject constructor(
                 }
             }
 
-            // 近30天价格历史（迷你走势图数据）
+            // 近30天价格历史（迷你走势图数据）— 遍历组内所有持仓
             val historySnapshots = try {
-                priceSnapshotDao.getByHoldingAndDateRange(
-                    first.id, today.minus(30, DateTimeUnit.DAY), today, accountId
-                ).first()
+                val allSnapshots = mutableListOf<com.financial.freedom.data.local.entity.PriceSnapshot>()
+                for (h in group) {
+                    try {
+                        val snaps = priceSnapshotDao.getByHoldingAndDateRange(
+                            h.id, today.minus(30, DateTimeUnit.DAY), today, accountId
+                        ).first()
+                        allSnapshots.addAll(snaps)
+                    } catch (_: Exception) { }
+                }
+                allSnapshots
             } catch (_: Exception) {
                 emptyList()
             }
