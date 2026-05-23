@@ -38,12 +38,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.financial.freedom.ui.cash.CashScreen
 import com.financial.freedom.ui.credit.CreditScreen
 import com.financial.freedom.ui.earnings.EarningsScreen
-import com.financial.freedom.ui.holdings.ActiveDepositsPage
+import com.financial.freedom.ui.holdings.DepositsPage
 import com.financial.freedom.ui.holdings.FundPage
 import com.financial.freedom.ui.holdings.GoldPage
 import com.financial.freedom.ui.holdings.HoldingsUiState
 import com.financial.freedom.ui.holdings.HoldingsViewModel
-import com.financial.freedom.ui.holdings.MaturedDepositsPage
 import com.financial.freedom.ui.holdings.StockPage
 import com.financial.freedom.ui.home.HomeScreen
 import com.financial.freedom.ui.settings.SettingsScreen
@@ -54,9 +53,9 @@ import kotlinx.coroutines.launch
 enum class PagerPage(val index: Int) {
     HOME(0),
     STOCK(1), FUND(2), GOLD(3),
-    DEPOSIT_ACTIVE(4), DEPOSIT_MATURED(5),
-    CASH(6), CREDIT(7),
-    EARNINGS(8), SETTINGS(9);
+    DEPOSIT(4),
+    CASH(5), CREDIT(6),
+    EARNINGS(7), SETTINGS(8);
 
     companion object {
         fun fromIndex(index: Int): PagerPage = entries.first { it.index == index }
@@ -75,9 +74,9 @@ enum class PagerPage(val index: Int) {
 /** Which bottom nav item is highlighted for a given page */
 fun bottomNavIndexFor(page: Int): Int = when (page) {
     0 -> 0             // 首页
-    in 1..7 -> 1       // 持仓 (投资+存款+现金+信用)
-    8 -> 2             // 收益
-    9 -> 3             // 设置
+    in 1..6 -> 1       // 持仓 (投资+存款+现金+信用)
+    7 -> 2             // 收益
+    8 -> 3             // 设置
     else -> 0
 }
 
@@ -91,9 +90,9 @@ private data class CategoryChip(
 
 private val categories = listOf(
     CategoryChip("投资", 1, 1..3),
-    CategoryChip("存款", 4, 4..5),
-    CategoryChip("现金", 6, 6..6),
-    CategoryChip("信用", 7, 7..7)
+    CategoryChip("存款", 4, 4..4),
+    CategoryChip("现金", 5, 5..5),
+    CategoryChip("信用", 6, 6..6)
 )
 
 @Composable
@@ -111,8 +110,8 @@ fun MainPagerScreen(
     val holdingsState by holdingsViewModel.uiState.collectAsState()
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Category quick-jump strip — pages 1-7 only
-        if (currentPage in 1..7) {
+        // Category quick-jump strip — pages 1-6 only
+        if (currentPage in 1..6) {
             CategoryNavStrip(
                 currentPage = currentPage,
                 holdingsState = holdingsState,
@@ -122,8 +121,8 @@ fun MainPagerScreen(
             )
         }
 
-        // Section indicator — pages 1-5 only (investment + deposit sub-pages)
-        if (currentPage in 1..5) {
+        // Section indicator — pages 1-3 only (investment sub-pages)
+        if (currentPage in 1..3) {
             SectionIndicator(
                 currentPage = currentPage,
                 holdingsState = holdingsState,
@@ -177,8 +176,7 @@ private fun PageContent(
             onHoldingClick = onHoldingClick,
             onAddHolding = { onAddHolding("GOLD") }
         )
-        PagerPage.DEPOSIT_ACTIVE -> ActiveDepositsPage(onBankClick = onBankClick, onAddDeposit = onAddDeposit)
-        PagerPage.DEPOSIT_MATURED -> MaturedDepositsPage(onBankClick = onBankClick)
+        PagerPage.DEPOSIT -> DepositsPage(onBankClick = onBankClick, onAddDeposit = onAddDeposit)
         PagerPage.CASH -> CashScreen()
         PagerPage.CREDIT -> CreditScreen()
         PagerPage.EARNINGS -> EarningsScreen()
@@ -261,19 +259,19 @@ private fun CategoryNavStrip(
                     summaryToday = holdingsState.investmentTodayChange
                     todayColor = if (holdingsState.investmentIsUp) FinancialColors.up else FinancialColors.down
                 }
-                currentPage in 4..5 -> {
+                currentPage == 4 -> {
                     summaryLabel = "存款总计"
                     summaryValue = "¥${holdingsState.depositTotalValue}"
                     summaryToday = holdingsState.depositTodayInterest
                     todayColor = FinancialColors.up
                 }
-                currentPage == 6 -> {
+                currentPage == 5 -> {
                     summaryLabel = "现金余额"
-                    summaryValue = "¥${holdingsState.depositTotalValue}" // cash not in holdings state
+                    summaryValue = ""  // cash managed separately
                     summaryToday = ""
                     todayColor = MaterialTheme.colorScheme.onSurface
                 }
-                currentPage == 7 -> {
+                currentPage == 6 -> {
                     summaryLabel = "应收净额"
                     summaryValue = ""
                     summaryToday = ""
@@ -344,8 +342,6 @@ private fun sectionInfoFor(page: Int): SectionInfo = when (page) {
     1 -> SectionInfo("投资", listOf("股票", "基金", "黄金"), listOf(1, 2, 3), 0)
     2 -> SectionInfo("投资", listOf("股票", "基金", "黄金"), listOf(1, 2, 3), 1)
     3 -> SectionInfo("投资", listOf("股票", "基金", "黄金"), listOf(1, 2, 3), 2)
-    4 -> SectionInfo("存款", listOf("持有中", "已到期"), listOf(4, 5), 0)
-    5 -> SectionInfo("存款", listOf("持有中", "已到期"), listOf(4, 5), 1)
     else -> SectionInfo("", emptyList(), emptyList(), 0)
 }
 
@@ -378,16 +374,6 @@ private fun SectionIndicator(
             subTotalValue = "黄金市值  ¥${holdingsState.goldTotalValue}"
             subToday = holdingsState.goldTodayChange
             subTodayColor = if (holdingsState.goldIsUp) FinancialColors.up else FinancialColors.down
-        }
-        4 -> {
-            subTotalValue = "持有中估值  ¥${holdingsState.activeDepositTotalValue}"
-            subToday = holdingsState.activeDepositTodayInterest
-            subTodayColor = FinancialColors.up
-        }
-        5 -> {
-            subTotalValue = "已到期本息  ¥${holdingsState.maturedDepositTotalValue}"
-            subToday = ""
-            subTodayColor = MaterialTheme.colorScheme.onSurface
         }
         else -> {
             subTotalValue = ""

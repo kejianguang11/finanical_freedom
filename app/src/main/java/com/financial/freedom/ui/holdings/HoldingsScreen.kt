@@ -49,7 +49,6 @@ import kotlinx.coroutines.launch
 
 private val topTabs = listOf("持仓", "存款", "现金", "信用")
 private val holdingSubTabs = listOf("股票", "基金", "黄金")
-private val depositSubTabs = listOf("持有中", "已到期")
 
 @Composable
 fun HoldingsScreen(
@@ -110,7 +109,7 @@ fun HoldingsScreen(
         ) { page ->
             when (page) {
                 0 -> HoldingSubTabs(state, onHoldingClick, onAddHolding)
-                1 -> DepositSubTabs(state, onDepositClick, onAddDeposit)
+                1 -> CombinedDepositTab(state, onDepositClick, onAddDeposit)
                 else -> {} // pages 2/3 handled by navigation
             }
         }
@@ -170,81 +169,20 @@ private fun HoldingSubTabs(
     }
 }
 
-// ===== 存款子标签：持有中 / 已到期 =====
+// ===== 存款列表（v18 合并持有中+已到期） =====
 @Composable
-private fun DepositSubTabs(
+private fun CombinedDepositTab(
     state: HoldingsUiState,
     onDepositClick: (Long) -> Unit,
     onAddDeposit: () -> Unit
 ) {
-    val subPagerState = rememberPagerState(pageCount = { depositSubTabs.size })
-    val coroutineScope = rememberCoroutineScope()
-
-    Column(Modifier.fillMaxSize()) {
-        ScrollableTabRow(
-            selectedTabIndex = subPagerState.currentPage,
-            modifier = Modifier.padding(horizontal = 16.dp),
-            containerColor = MaterialTheme.colorScheme.background,
-            edgePadding = 0.dp,
-            divider = {},
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[subPagerState.currentPage]),
-                    color = FinancialColors.gold
-                )
-            }
-        ) {
-            depositSubTabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = subPagerState.currentPage == index,
-                    onClick = { coroutineScope.launch { subPagerState.animateScrollToPage(index) } },
-                    text = {
-                        Text(
-                            title,
-                            fontWeight = if (subPagerState.currentPage == index) FontWeight.SemiBold
-                            else FontWeight.Normal,
-                            color = if (subPagerState.currentPage == index)
-                                MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                )
-            }
-        }
-
-        HorizontalPager(state = subPagerState, modifier = Modifier.fillMaxSize()) { page ->
-            val padMod = Modifier.fillMaxSize().padding(horizontal = 16.dp)
-            when (page) {
-                0 -> ActiveDepositTab(state, padMod, onDepositClick, onAddDeposit)
-                1 -> MaturedDepositTab(state, padMod, onDepositClick)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActiveDepositTab(state: HoldingsUiState, modifier: Modifier, onDepositClick: (Long) -> Unit, onAddDeposit: () -> Unit) {
-    LazyColumn(modifier = modifier) {
-        if (state.deposits.isEmpty()) {
+    val allDeposits = state.deposits + state.maturedDeposits
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        if (allDeposits.isEmpty()) {
             item { EmptyHint("暂无存款", "点击 + 添加") { onAddDeposit() } }
         } else {
-            items(state.deposits, key = { "deposit_${it.id}" }) { d ->
+            items(allDeposits, key = { "deposit_${it.id}" }) { d ->
                 DepositCard(d, onClick = { onDepositClick(d.id) })
-                Spacer(Modifier.height(12.dp))
-            }
-        }
-        item { Spacer(Modifier.height(80.dp)) }
-    }
-}
-
-@Composable
-private fun MaturedDepositTab(state: HoldingsUiState, modifier: Modifier, onDepositClick: (Long) -> Unit) {
-    LazyColumn(modifier = modifier) {
-        if (state.maturedDeposits.isEmpty()) {
-            item { EmptyHint("暂无已到期存款", "到期存款将自动赎回到现金") {} }
-        } else {
-            items(state.maturedDeposits, key = { "matured_${it.id}" }) { d ->
-                MaturedDepositCard(d, onClick = { onDepositClick(d.id) })
                 Spacer(Modifier.height(12.dp))
             }
         }
@@ -431,7 +369,7 @@ fun MaturedDepositCard(deposit: DepositDisplay, onClick: () -> Unit = {}) {
 
 // ===== Holding Card (股票/基金/黄金) =====
 @Composable
-fun HoldingCard(holding: HoldingDisplay, onClick: () -> Unit = {}) {
+fun HoldingCard(holding: HoldingDisplay, isAlternate: Boolean = false, onClick: () -> Unit = {}) {
     val typeColor = when (holding.type) {
         "STOCK" -> FinancialColors.stock
         "FUND" -> FinancialColors.fund
@@ -445,7 +383,11 @@ fun HoldingCard(holding: HoldingDisplay, onClick: () -> Unit = {}) {
             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isAlternate)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            else MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Max)) {

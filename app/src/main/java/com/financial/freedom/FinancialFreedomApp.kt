@@ -62,7 +62,7 @@ fun FinancialFreedomApp(accountManager: AccountManager, defaultDataSeeder: Defau
         val coroutineScope = rememberCoroutineScope()
 
         // Pager state hoisted here so bottom nav can control it
-        val pagerState = rememberPagerState(pageCount = { 10 })
+        val pagerState = rememberPagerState(pageCount = { 9 })  // v18: 9 pages (removed matured deposits)
 
         LaunchedEffect(Unit) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {

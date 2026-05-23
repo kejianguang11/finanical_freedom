@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -49,6 +50,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
@@ -67,7 +69,6 @@ fun StockPage(
     val state by viewModel.uiState.collectAsState()
     HoldingGroupListPage(
         groups = state.stockGroups,
-        groupColor = FinancialColors.stock,
         onHoldingClick = onHoldingClick,
         onAddHolding = onAddHolding,
         emptyTitle = "暂无股票",
@@ -85,7 +86,6 @@ fun FundPage(
     val state by viewModel.uiState.collectAsState()
     HoldingGroupListPage(
         groups = state.fundGroups,
-        groupColor = FinancialColors.fund,
         onHoldingClick = onHoldingClick,
         onAddHolding = onAddHolding,
         emptyTitle = "暂无基金",
@@ -111,9 +111,9 @@ fun GoldPage(
     )
 }
 
-// ===== Active Deposits Page (Pager page 4) =====
+// ===== Deposits Page (Pager page 4) — v18 合并持有中+已到期 =====
 @Composable
-fun ActiveDepositsPage(
+fun DepositsPage(
     onBankClick: (String, String) -> Unit = { _, _ -> },
     onAddDeposit: () -> Unit = {},
     viewModel: HoldingsViewModel = hiltViewModel()
@@ -128,8 +128,14 @@ fun ActiveDepositsPage(
                     EmptyHint("暂无存款", "点击 + 添加定期存款", onClick = onAddDeposit)
                 }
             } else {
-                items(state.bankGroups, key = { "bank_${it.bank}" }) { group ->
-                    BankGroupCard(group, onClick = { onBankClick(group.bank, "active") })
+                itemsIndexed(state.bankGroups, key = { _, g -> "bank_${g.bank}" }) { index, group ->
+                    val allMatured = group.maturedCount >= group.depositCount
+                    BankGroupCard(
+                        group = group,
+                        isMatured = allMatured,
+                        isAlternate = index % 2 == 1,
+                        onClick = { onBankClick(group.bank, if (allMatured) "matured" else "active") }
+                    )
                     Spacer(Modifier.height(12.dp))
                 }
             }
@@ -148,33 +154,7 @@ fun ActiveDepositsPage(
     }
 }
 
-// ===== Matured Deposits Page (Pager page 5) =====
-@Composable
-fun MaturedDepositsPage(
-    onBankClick: (String, String) -> Unit = { _, _ -> },
-    viewModel: HoldingsViewModel = hiltViewModel()
-) {
-    val state by viewModel.uiState.collectAsState()
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
-    ) {
-        if (state.maturedBankGroups.isEmpty()) {
-            item {
-                EmptyHint("暂无已到期存款", "到期存款将自动赎回到现金") {}
-            }
-        } else {
-            items(state.maturedBankGroups, key = { "matured_bank_${it.bank}" }) { group ->
-                BankGroupCard(
-                    group = group,
-                    isMatured = true,
-                    onClick = { onBankClick(group.bank, "matured") }
-                )
-                Spacer(Modifier.height(12.dp))
-            }
-        }
-        item { Spacer(Modifier.height(80.dp)) }
-    }
-}
+// MaturedDepositsPage removed in v18 — matured deposits shown inline in DepositsPage
 
 // ===== Shared list composable for stock/fund/gold =====
 @Composable
@@ -195,8 +175,8 @@ private fun HoldingListPage(
                     EmptyHint(emptyTitle, emptySubtitle, onClick = onAddHolding)
                 }
             } else {
-                items(items, key = itemKey) { h ->
-                    HoldingCard(h, onClick = { onHoldingClick(h.id) })
+                itemsIndexed(items, key = { _, h -> itemKey(h) }) { index, h ->
+                    HoldingCard(h, isAlternate = index % 2 == 1, onClick = { onHoldingClick(h.id) })
                     Spacer(Modifier.height(12.dp))
                 }
             }
@@ -215,11 +195,10 @@ private fun HoldingListPage(
     }
 }
 
-// ===== Shared group list for stock/fund (v17) =====
+// ===== Shared group list for stock/fund (v18 — per-group sector color) =====
 @Composable
 private fun HoldingGroupListPage(
     groups: List<HoldingGroupDisplay>,
-    groupColor: Color,
     onHoldingClick: (Long) -> Unit,
     onAddHolding: () -> Unit,
     emptyTitle: String,
@@ -234,10 +213,11 @@ private fun HoldingGroupListPage(
                     EmptyHint(emptyTitle, emptySubtitle, onClick = onAddHolding)
                 }
             } else {
-                items(groups, key = { "${it.type}_${it.symbol}" }) { group ->
+                itemsIndexed(groups, key = { _, group -> "${group.type}_${group.symbol}" }) { index, group ->
                     HoldingGroupCard(
                         group = group,
-                        groupColor = groupColor,
+                        groupColor = group.sectorColor,
+                        isAlternate = index % 2 == 1,
                         onClick = { onHoldingClick(group.mainHoldingId) }
                     )
                     Spacer(Modifier.height(12.dp))
@@ -263,6 +243,7 @@ private fun HoldingGroupListPage(
 private fun HoldingGroupCard(
     group: HoldingGroupDisplay,
     groupColor: Color,
+    isAlternate: Boolean = false,
     onClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -274,7 +255,11 @@ private fun HoldingGroupCard(
             .fillMaxWidth()
             .animateContentSize(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isAlternate)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            else MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Max)) {
@@ -546,26 +531,32 @@ private fun BuyRecordItem(
     }
 }
 
-// ===== Bank Group Card (v17) =====
+// ===== Bank Group Card (v18) — 银行专属色 + 首字图标 =====
 @Composable
 fun BankGroupCard(
     group: BankGroupDisplay,
     isMatured: Boolean = false,
+    isAlternate: Boolean = false,
     onClick: () -> Unit = {}
 ) {
-    val cardAlpha = if (isMatured) 0.6f else 1f
+    val bankColor = FinancialColors.BankPalette.getOrElse(group.colorIndex) { FinancialColors.deposit }
+    val allMatured = group.maturedCount >= group.depositCount
+    val cardAlpha = if (allMatured) 0.6f else 1f
 
     ElevatedCard(
         modifier = Modifier
-            .fillMaxWidth()
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
+            .fillMaxWidth(),
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (isMatured) 2.dp else 4.dp)
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isAlternate)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f * cardAlpha)
+            else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (allMatured) 2.dp else 3.dp)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Max)) {
-            // 左侧色条
+            // 左侧色条 — 银行专属色
             Box(
                 modifier = Modifier
                     .width(5.dp)
@@ -573,34 +564,61 @@ fun BankGroupCard(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                FinancialColors.deposit.copy(alpha = cardAlpha),
-                                FinancialColors.deposit.copy(alpha = 0.3f * cardAlpha)
+                                bankColor.copy(alpha = cardAlpha),
+                                bankColor.copy(alpha = 0.3f * cardAlpha)
                             )
                         ),
                         RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
                     )
             )
-            Column(Modifier.padding(16.dp).weight(1f)) {
+            Column(Modifier.padding(12.dp).weight(1f)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            group.bank,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = cardAlpha)
-                        )
-                        if (isMatured) {
-                            Spacer(Modifier.width(8.dp))
+                        // v18: 银行首字图标
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(bankColor.copy(alpha = cardAlpha)),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                "已到期 ✓",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium
+                                FinancialColors.bankInitial(group.bank),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    group.bank,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = cardAlpha)
+                                )
+                                // v18: 已到期 badge
+                                if (group.maturedCount > 0) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        "已到期 ${group.maturedCount}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFFC0392B),
+                                        modifier = Modifier
+                                            .background(
+                                                Color(0xFFC0392B).copy(alpha = 0.1f),
+                                                RoundedCornerShape(4.dp)
+                                            )
+                                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                     Text(
@@ -625,17 +643,17 @@ fun BankGroupCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("¥${group.totalCurrentValue}", fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = FinancialColors.deposit.copy(alpha = cardAlpha))
+                            color = bankColor.copy(alpha = cardAlpha))
                     }
                 }
 
                 Spacer(Modifier.height(10.dp))
 
-                if (!isMatured) {
+                if (!allMatured) {
                     LinearProgressIndicator(
                         progress = { group.weightedProgress },
                         modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                        color = FinancialColors.deposit,
+                        color = bankColor,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     )
                     Spacer(Modifier.height(4.dp))
@@ -647,6 +665,12 @@ fun BankGroupCard(
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "最早到期 ${group.nearestMaturity}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        "已全部到期",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

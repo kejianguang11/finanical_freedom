@@ -73,7 +73,9 @@ data class BankGroupDisplay(
     val isInterestUp: Boolean,
     val weightedProgress: Float,
     val nearestMaturity: String,
-    val currency: String
+    val currency: String,
+    val colorIndex: Int = 0,
+    val maturedCount: Int = 0
 )
 
 // v17: 买入记录展示数据
@@ -109,7 +111,8 @@ data class HoldingGroupDisplay(
     val currency: String,
     val buyRecords: List<BuyRecordDisplay>,
     val mainHoldingId: Long,
-    val priceHistory: List<BigDecimal> = emptyList()
+    val priceHistory: List<BigDecimal> = emptyList(),
+    val sectorColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color(0xFF546E7A)
 )
 
 data class HoldingsUiState(
@@ -127,7 +130,7 @@ data class HoldingsUiState(
     val depositTotalValue: String = "",
     val depositTodayInterest: String = "",
 
-    // v17: 子类汇总（SectionIndicator 用）
+    // v17: 子类汇总（SectionIndicator 用 — 仅投资段保留）
     val stockTotalValue: String = "",
     val stockTodayChange: String = "",
     val stockIsUp: Boolean = true,
@@ -137,13 +140,9 @@ data class HoldingsUiState(
     val goldTotalValue: String = "",
     val goldTodayChange: String = "",
     val goldIsUp: Boolean = true,
-    val activeDepositTotalValue: String = "",
-    val activeDepositTodayInterest: String = "",
-    val maturedDepositTotalValue: String = "",
 
     // v17: 分组列表
     val bankGroups: List<BankGroupDisplay> = emptyList(),
-    val maturedBankGroups: List<BankGroupDisplay> = emptyList(),
     val stockGroups: List<HoldingGroupDisplay> = emptyList(),
     val fundGroups: List<HoldingGroupDisplay> = emptyList(),
     val displayMultiplier: java.math.BigDecimal = java.math.BigDecimal.ONE
@@ -175,18 +174,23 @@ class HoldingsViewModel @Inject constructor(
         if (accountId != null) {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
+            // v18: 合并 active + matured 为单组 bankGroups，已到期 inline 显示
             viewModelScope.launch {
-                depositRepository.getAll(accountId).collect { deposits ->
-                    val displays = deposits.map { d -> toDepositDisplay(d, today) }
+                combine(
+                    depositRepository.getAll(accountId),
+                    depositRepository.getInactiveList(accountId)
+                ) { active, matured ->
+                    val activeDisplays = active.map { d -> toDepositDisplay(d, today) }
+                    val maturedDisplays = matured.map { d -> toDepositDisplay(d, today) }
+                    val allDisplays = activeDisplays + maturedDisplays
                     _uiState.value = _uiState.value.copy(
-                        deposits = displays,
-                        bankGroups = toBankGroupList(deposits, today),
-                        activeDepositTotalValue = computeDepositCategoryValue(displays),
-                        activeDepositTodayInterest = computeDepositInterestSum(deposits, today),
-                        depositTotalValue = computeDepositCategoryValue(displays),
-                        depositTodayInterest = computeDepositInterestSum(deposits, today)
+                        deposits = activeDisplays,
+                        maturedDeposits = maturedDisplays,
+                        bankGroups = toMergedBankGroupList(active, matured, today),
+                        depositTotalValue = computeDepositCategoryValue(allDisplays),
+                        depositTodayInterest = computeDepositInterestSum(active, today)
                     )
-                }
+                }.collect { }
             }
             viewModelScope.launch {
                 combine(
@@ -213,16 +217,6 @@ class HoldingsViewModel @Inject constructor(
                 ) { golds, _ -> golds
                 }.collect { golds ->
                     updateHoldingDisplays("GOLD", golds, accountId)
-                }
-            }
-            viewModelScope.launch {
-                depositRepository.getInactiveList(accountId).collect { matured ->
-                    val displays = matured.map { d -> toDepositDisplay(d, today) }
-                    _uiState.value = _uiState.value.copy(
-                        maturedDeposits = displays,
-                        maturedBankGroups = toBankGroupList(matured, today),
-                        maturedDepositTotalValue = computeDepositCategoryValue(displays)
-                    )
                 }
             }
         }
@@ -273,33 +267,38 @@ class HoldingsViewModel @Inject constructor(
         }
     }
 
-    // v17: 银行分组
-    private suspend fun toBankGroupList(
-        deposits: List<Deposit>,
+    // v18: 合并 active + matured 银行分组（每个银行一个卡片，含已到期数）
+    private suspend fun toMergedBankGroupList(
+        active: List<Deposit>,
+        matured: List<Deposit>,
         today: kotlinx.datetime.LocalDate
     ): List<BankGroupDisplay> {
-        return deposits.groupBy { it.bank }.map { (bank, group) ->
-            val totalPrincipalRaw = group.sumOf { d ->
+        val allByBank = (active + matured).groupBy { it.bank }
+        return allByBank.map { (bank, allDeposits) ->
+            val activeInBank = allDeposits.filter { it.status == "active" || it.status == null }
+            val maturedInBank = allDeposits.filter { it.status == "matured" || it.status == "settled" }
+
+            val totalPrincipalRaw = allDeposits.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 d.principal.multiply(rate)
             }
-            val totalInterestRaw = group.sumOf { d ->
+            val totalInterestRaw = activeInBank.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 val dailyInterest = d.principal.multiply(d.interestRate)
                     .divide(BigDecimal(365), 6, RoundingMode.HALF_UP)
                 dailyInterest.multiply(rate)
             }
-            val totalValueRaw = group.sumOf { d ->
+            val totalValueRaw = allDeposits.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 valuationCalculator.calcDepositValueCNY(d, rate, today)
             }
 
-            // 本金加权进度
+            // 本金加权进度（仅 active）
             val weightedProgress = if (totalPrincipalRaw.compareTo(BigDecimal.ZERO) > 0) {
-                group.sumOf { d ->
+                activeInBank.sumOf { d ->
                     val holdingDays = interestCalculator.holdingDays(d.startDate, d.maturityDate, today)
                     val totalDays = d.startDate.until(d.maturityDate, kotlinx.datetime.DateTimeUnit.DAY).toInt().coerceAtLeast(1)
                     val progress = holdingDays.toFloat() / totalDays
@@ -309,19 +308,22 @@ class HoldingsViewModel @Inject constructor(
                 }.divide(totalPrincipalRaw, 4, RoundingMode.HALF_UP).toFloat()
             } else 0f
 
-            val nearestMaturity = group.minOf { it.maturityDate }
+            val nearestMaturity = if (activeInBank.isNotEmpty())
+                activeInBank.minOf { it.maturityDate }
+            else allDeposits.first().maturityDate
 
             BankGroupDisplay(
                 bank = bank,
-                depositCount = group.size,
+                depositCount = allDeposits.size,
                 totalPrincipal = formatMoney(totalPrincipalRaw.setScale(0, RoundingMode.HALF_UP)),
                 totalCurrentValue = formatMoney(totalValueRaw),
-                todayTotalInterest = if (totalInterestRaw >= BigDecimal.ZERO)
-                    "+${formatMoney(totalInterestRaw)}" else formatMoney(totalInterestRaw),
+                todayTotalInterest = formatMoney(totalInterestRaw.abs()),
                 isInterestUp = totalInterestRaw >= BigDecimal.ZERO,
                 weightedProgress = weightedProgress.coerceIn(0f, 1f),
                 nearestMaturity = nearestMaturity.toString(),
-                currency = "CNY"
+                currency = "CNY",
+                colorIndex = com.financial.freedom.ui.theme.FinancialColors.bankColorIndex(bank),
+                maturedCount = maturedInBank.size
             )
         }.sortedByDescending { parseMoneyValue(it.totalCurrentValue) }
     }
@@ -407,9 +409,8 @@ class HoldingsViewModel @Inject constructor(
                             price = formatMoney(t.price.multiply(rate)),
                             cost = formatMoney(cost.multiply(rate).setScale(2, RoundingMode.HALF_UP)),
                             currentValue = formatMoney(currentVal),
-                            pnl = if (pnl >= BigDecimal.ZERO) "+${formatMoney(pnl)}" else formatMoney(pnl),
-                            pnlPct = if (pnlPct >= BigDecimal.ZERO) "+${pnlPct.setScale(2, RoundingMode.HALF_UP)}%"
-                            else "${pnlPct.setScale(2, RoundingMode.HALF_UP)}%",
+                            pnl = formatMoney(pnl.abs()),
+                            pnlPct = "${pnlPct.abs().setScale(2, RoundingMode.HALF_UP)}%",
                             isUp = pnl >= BigDecimal.ZERO
                         )
                     )
@@ -433,6 +434,19 @@ class HoldingsViewModel @Inject constructor(
             }
             val priceHistory = historySnapshots.sortedBy { it.date }.map { it.unitPrice }
 
+            // v18: 分配板块/类型色
+            val sectorColor = when (first.type) {
+                "STOCK" -> {
+                    val colors = com.financial.freedom.ui.theme.FinancialColors.SectorColors.values.toList()
+                    colors[symbol.hashCode().mod(colors.size)]
+                }
+                "FUND" -> {
+                    val colors = com.financial.freedom.ui.theme.FinancialColors.FundTypeColors.values.toList()
+                    colors[symbol.hashCode().mod(colors.size)]
+                }
+                else -> com.financial.freedom.ui.theme.FinancialColors.goldAsset
+            }
+
             HoldingGroupDisplay(
                 symbol = symbol,
                 name = first.name,
@@ -441,18 +455,17 @@ class HoldingsViewModel @Inject constructor(
                 totalQuantity = totalQuantity.toPlainString(),
                 avgCost = formatMoney(avgCost.multiply(rate)),
                 currentPrice = formatMoney(currentPrice.multiply(rate)),
-                totalPnL = if (totalPnL >= BigDecimal.ZERO) "+${formatMoney(totalPnL)}" else formatMoney(totalPnL),
-                totalPnLPct = if (totalPnLPct >= BigDecimal.ZERO) "+${totalPnLPct.setScale(2, RoundingMode.HALF_UP)}%"
-                else "${totalPnLPct.setScale(2, RoundingMode.HALF_UP)}%",
-                todayChange = if (todayChange >= BigDecimal.ZERO) "+${formatMoney(todayChange)}" else formatMoney(todayChange),
-                todayChangePct = if (todayChangePct >= BigDecimal.ZERO) "+${todayChangePct.setScale(2, RoundingMode.HALF_UP)}%"
-                else "${todayChangePct.setScale(2, RoundingMode.HALF_UP)}%",
+                totalPnL = formatMoney(totalPnL.abs()),
+                totalPnLPct = "${totalPnLPct.abs().setScale(2, RoundingMode.HALF_UP)}%",
+                todayChange = formatMoney(todayChange.abs()),
+                todayChangePct = "${todayChangePct.abs().setScale(2, RoundingMode.HALF_UP)}%",
                 isUp = totalPnL >= BigDecimal.ZERO,
                 marketValue = formatMoney(marketValue),
                 currency = first.currency,
                 buyRecords = buyRecords,
                 mainHoldingId = first.id,
-                priceHistory = priceHistory
+                priceHistory = priceHistory,
+                sectorColor = sectorColor
             )
         }.sortedByDescending { parseMoneyValue(it.marketValue) }
     }
@@ -473,7 +486,7 @@ class HoldingsViewModel @Inject constructor(
                 .divide(BigDecimal(365), 6, RoundingMode.HALF_UP)
                 .multiply(rate)
         }
-        return if (sum >= BigDecimal.ZERO) "+${formatMoney(sum)}" else formatMoney(sum)
+        return formatMoney(sum.abs())
     }
 
     private fun computeHoldingCategoryValue(displays: List<HoldingDisplay>): String {
@@ -498,8 +511,7 @@ class HoldingsViewModel @Inject constructor(
             else exchangeRateRepository.getRate(h.currency, "CNY", today) ?: BigDecimal.ONE
             sum = sum.add(currentPrice.subtract(prevPrice).multiply(h.quantity).multiply(rate))
         }
-        val formatted = if (sum >= BigDecimal.ZERO) "+${formatMoney(sum)}" else formatMoney(sum)
-        return Pair(formatted, sum >= BigDecimal.ZERO)
+        return Pair(formatMoney(sum.abs()), sum >= BigDecimal.ZERO)
     }
 
     private fun computeInvestmentTotal(state: HoldingsUiState): String {
@@ -517,7 +529,7 @@ class HoldingsViewModel @Inject constructor(
             parseMoneyValueOrZero(state.fundTodayChange),
             parseMoneyValueOrZero(state.goldTodayChange)
         ).fold(BigDecimal.ZERO) { acc, v -> acc.add(v) }
-        return if (sum >= BigDecimal.ZERO) "+${formatMoney(sum)}" else formatMoney(sum)
+        return formatMoney(sum.abs())
     }
 
     private suspend fun toDepositDisplay(d: Deposit, today: kotlinx.datetime.LocalDate): DepositDisplay {
@@ -580,10 +592,9 @@ class HoldingsViewModel @Inject constructor(
             quantity = "${h.quantity}",
             costPrice = formatMoney(h.costPrice.multiply(rate)),
             currentPrice = formatMoney(currentPrice.multiply(rate)),
-            totalPnL = if (totalPnL >= BigDecimal.ZERO) "+${formatMoney(totalPnL)}" else formatMoney(totalPnL),
-            totalPnLPct = if (totalPnLPct >= BigDecimal.ZERO) "+${totalPnLPct.setScale(2, RoundingMode.HALF_UP)}%"
-            else "${totalPnLPct.setScale(2, RoundingMode.HALF_UP)}%",
-            todayChange = if (todayChange >= BigDecimal.ZERO) "+${formatMoney(todayChange)}" else formatMoney(todayChange),
+            totalPnL = formatMoney(totalPnL.abs()),
+            totalPnLPct = "${totalPnLPct.abs().setScale(2, RoundingMode.HALF_UP)}%",
+            todayChange = formatMoney(todayChange.abs()),
             isUp = totalPnL >= BigDecimal.ZERO,
             marketValue = formatMoney(marketValue),
             currency = h.currency

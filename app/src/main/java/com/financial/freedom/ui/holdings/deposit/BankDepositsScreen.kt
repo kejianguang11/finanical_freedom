@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,12 +46,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.financial.freedom.ui.holdings.DepositDisplay
 import com.financial.freedom.ui.theme.FinancialColors
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,17 +72,37 @@ fun BankDepositsScreen(
         viewModel.load(bankName, status)
     }
 
+    val bankColor = FinancialColors.bankColor(bankName)
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(bankName, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "${state.depositCount} 笔存单",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // v18: 银行首字图标
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(bankColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                FinancialColors.bankInitial(bankName),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(bankName, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "${state.depositCount} 笔存单",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -112,15 +134,18 @@ fun BankDepositsScreen(
             ) {
                 // 汇总卡片
                 item {
-                    BankSummaryCard(state)
+                    BankSummaryCard(state, bankColor)
                     Spacer(Modifier.height(16.dp))
                 }
 
                 // 存单列表
-                items(state.deposits, key = { "deposit_${it.id}" }) { deposit ->
+                itemsIndexed(state.deposits, key = { _, d -> "deposit_${d.id}" }) { index, deposit ->
                     DepositCard(
                         deposit = deposit,
+                        index = index,
+                        totalCount = state.deposits.size,
                         isMatured = status == "matured",
+                        bankColor = bankColor,
                         onEdit = { onEditDeposit(deposit.id) },
                         onDelete = { id -> deleteTargetId = id }
                     )
@@ -155,7 +180,7 @@ fun BankDepositsScreen(
 }
 
 @Composable
-private fun BankSummaryCard(state: BankDepositsUiState) {
+private fun BankSummaryCard(state: BankDepositsUiState, bankColor: Color) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -168,11 +193,29 @@ private fun BankSummaryCard(state: BankDepositsUiState) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "${state.bankName} · ${state.depositCount} 笔存单",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // v18: 银行图标
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(bankColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            FinancialColors.bankInitial(state.bankName),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "${state.bankName} · ${state.depositCount} 笔存单",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 if (state.status == "matured") {
                     Text(
                         "已到期 ✓",
@@ -196,7 +239,7 @@ private fun BankSummaryCard(state: BankDepositsUiState) {
                 Column(horizontalAlignment = Alignment.End) {
                     Text("累计利息", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.totalInterest, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                        color = FinancialColors.deposit)
+                        color = bankColor)
                 }
             }
 
@@ -222,50 +265,82 @@ private fun BankSummaryCard(state: BankDepositsUiState) {
     }
 }
 
+/** v18: Progress-based left bar color, using bank's identity color as base. */
+private fun progressBarColor(progress: Float, alpha: Float = 1f, bankColor: Color): Color {
+    // Vary saturation/brightness based on progress while keeping the bank's hue
+    val lightnessFactor = 1f + (1f - progress) * 0.35f
+    return bankColor.copy(
+        red = (bankColor.red * lightnessFactor).coerceIn(0f, 1f),
+        green = (bankColor.green * lightnessFactor).coerceIn(0f, 1f),
+        blue = (bankColor.blue * lightnessFactor).coerceIn(0f, 1f),
+        alpha = alpha
+    )
+}
+
 @Composable
 private fun DepositCard(
     deposit: DepositDisplay,
+    index: Int,
+    totalCount: Int,
     isMatured: Boolean,
+    bankColor: Color,
     onEdit: () -> Unit,
     onDelete: (Long) -> Unit
 ) {
     val cardAlpha = if (isMatured) 0.6f else 1f
+    val isAlternate = index % 2 == 1
+    val barColor = if (isMatured) bankColor.copy(alpha = 0.4f)
+        else progressBarColor(deposit.progress, cardAlpha, bankColor)
+    val progressPct = (deposit.progress * 100).roundToInt()
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isAlternate)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f * cardAlpha)
+            else MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Max)) {
-            // 左侧色条
+            // 左侧色条 — 颜色随进度变化
             Box(
                 modifier = Modifier
-                    .width(4.dp)
+                    .width(5.dp)
                     .fillMaxHeight()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(
-                                FinancialColors.deposit.copy(alpha = cardAlpha),
-                                FinancialColors.deposit.copy(alpha = 0.3f * cardAlpha)
-                            )
+                            colors = listOf(barColor, barColor.copy(alpha = 0.2f))
                         ),
                         RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
                     )
             )
             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp).weight(1f)) {
-                // 行 1：存单名 | 本金 · 利率
+                // 行 1：序号 + 存单名 | 本金 · 利率
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        deposit.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = cardAlpha)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "NO.${index + 1}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = barColor,
+                            modifier = Modifier
+                                .background(barColor.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            deposit.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = cardAlpha)
+                        )
+                    }
                     Text(
                         "${deposit.principal} · ${deposit.rate}",
                         fontSize = 12.sp,
@@ -273,7 +348,7 @@ private fun DepositCard(
                     )
                 }
 
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
 
                 // 行 2：当前估值 | 今日利息
                 Row(
@@ -285,8 +360,8 @@ private fun DepositCard(
                         Text("当前估值", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             deposit.currentValue,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = cardAlpha)
                         )
                     }
@@ -294,16 +369,16 @@ private fun DepositCard(
                         Text("今日利息", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             deposit.todayInterest,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = FinancialColors.up
                         )
                     }
                 }
 
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
 
-                // 行 3：日期 + 进度条
+                // 行 3：日期 + 进度
                 Text(
                     "${deposit.startDate} → ${deposit.maturityDate}",
                     fontSize = 11.sp,
@@ -312,29 +387,29 @@ private fun DepositCard(
                 Spacer(Modifier.height(2.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
-                        "${deposit.holdingDays}/${deposit.totalDays} 天",
+                        "${deposit.holdingDays}/${deposit.totalDays} 天 · ${progressPct}%",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         "累计利息 ${deposit.accruedInterest}",
                         fontSize = 11.sp,
-                        color = FinancialColors.deposit.copy(alpha = cardAlpha),
+                        color = barColor,
                         fontWeight = FontWeight.Medium
                     )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 LinearProgressIndicator(
                     progress = { deposit.progress },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                    color = FinancialColors.deposit,
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = barColor,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
 
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
 
                 // 编辑/删除 按钮
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End,
