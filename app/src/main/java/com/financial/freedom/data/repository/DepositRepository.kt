@@ -23,4 +23,6 @@ class DepositRepository @Inject constructor(
     suspend fun update(deposit: Deposit) = dao.update(deposit)
 
     suspend fun delete(deposit: Deposit) = dao.delete(deposit)
+
+    fun getInactiveList(accountId: Long): Flow<List<Deposit>> = dao.getInactiveFlow(accountId)
 }

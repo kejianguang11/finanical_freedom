@@ -22,6 +22,8 @@ class ValuationCalculator @Inject constructor(
         exchangeRate: BigDecimal,
         asOfDate: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
     ): BigDecimal {
+        // 存款未生效前不参与估值，避免虚增历史净值
+        if (asOfDate < deposit.startDate) return BigDecimal.ZERO
         val interest = if (deposit.status == "active") {
             interestCalculator.accruedInterest(
                 principal = deposit.principal,

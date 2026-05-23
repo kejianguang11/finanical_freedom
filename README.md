@@ -1,4 +1,4 @@
-# Financial Freedom
+# 扶摇阁
 
 一站式个人财富管理 Android App，离线优先 + 多资产覆盖 + 多账号隔离。
 

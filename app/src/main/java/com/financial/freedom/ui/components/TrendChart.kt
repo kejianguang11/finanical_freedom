@@ -3,6 +3,7 @@ package com.financial.freedom.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -49,19 +52,31 @@ data class ChartPoint(
 @Composable
 fun TrendChart(
     data: List<DailySummary>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showPercentage: Boolean = false,
+    secondaryData: List<DailySummary>? = null,
+    secondaryLabel: String? = null,
+    secondaryColor: Color = FinancialColors.deposit
 ) {
     if (data.isEmpty()) return
 
+    val firstValue = remember(data) { data.firstOrNull()?.totalValueCNY ?: BigDecimal.ZERO }
     val isUp = data.last().totalValueCNY >= (data.firstOrNull()?.totalValueCNY ?: BigDecimal.ZERO)
     val lineColor = if (isUp) FinancialColors.up else FinancialColors.down
 
-    val points = remember(data) {
+    val points = remember(data, showPercentage, firstValue) {
         data.map { s ->
             val rawValue = s.totalValueCNY
+            val displayValue = if (showPercentage && firstValue > BigDecimal.ZERO) {
+                rawValue.subtract(firstValue).divide(firstValue, 6, java.math.RoundingMode.HALF_UP)
+                    .multiply(BigDecimal(100)).setScale(2, java.math.RoundingMode.HALF_UP)
+                    .toDouble()
+            } else {
+                rawValue.toDouble()
+            }
             ChartPoint(
                 date = "${s.date.monthNumber}/${s.date.dayOfMonth}",
-                value = rawValue.toDouble(),
+                value = displayValue,
                 rawValue = rawValue,
                 dayChange = s.dayChange,
                 dayChangePct = s.dayChangePct
@@ -69,19 +84,49 @@ fun TrendChart(
         }
     }
 
+    val secondaryPoints = remember(secondaryData, showPercentage) {
+        secondaryData?.filter { it.totalValueCNY > BigDecimal.ZERO }?.map { s ->
+            val rawValue = s.totalValueCNY
+            val displayValue = if (showPercentage && firstValue > BigDecimal.ZERO) {
+                rawValue.subtract(firstValue).divide(firstValue, 6, java.math.RoundingMode.HALF_UP)
+                    .multiply(BigDecimal(100)).setScale(2, java.math.RoundingMode.HALF_UP)
+                    .toDouble()
+            } else {
+                rawValue.toDouble()
+            }
+            ChartPoint(
+                date = "${s.date.monthNumber}/${s.date.dayOfMonth}",
+                value = displayValue,
+                rawValue = rawValue,
+                dayChange = BigDecimal.ZERO,
+                dayChangePct = BigDecimal.ZERO
+            )
+        }
+    }
+
     val minVal = remember(points) { points.minOf { it.value } }
     val maxVal = remember(points) { points.maxOf { it.value } }
-    val range = (maxVal - minVal).coerceAtLeast(1.0)
+    val range = (maxVal - minVal).coerceAtLeast(0.01)
     val midVal = (minVal + maxVal) / 2.0
 
-    val yLabels = remember(minVal, maxVal) {
-        listOf(
-            formatYLabel(maxVal),
-            formatYLabel((maxVal + midVal) / 2),
-            formatYLabel(midVal),
-            formatYLabel((midVal + minVal) / 2),
-            formatYLabel(minVal)
-        )
+    val yLabels = remember(minVal, maxVal, showPercentage) {
+        if (showPercentage) {
+            listOf(
+                formatPctLabel(maxVal),
+                formatPctLabel((maxVal + midVal) / 2),
+                formatPctLabel(midVal),
+                formatPctLabel((midVal + minVal) / 2),
+                formatPctLabel(minVal)
+            )
+        } else {
+            listOf(
+                formatYLabel(maxVal),
+                formatYLabel((maxVal + midVal) / 2),
+                formatYLabel(midVal),
+                formatYLabel((midVal + minVal) / 2),
+                formatYLabel(minVal)
+            )
+        }
     }
 
     val xLabels = remember(points) {
@@ -102,6 +147,38 @@ fun TrendChart(
     val density = LocalDensity.current
 
     Column(modifier = modifier) {
+        // Legend row
+        if (secondaryData != null && secondaryLabel != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(16.dp).height(3.dp)
+                        .background(lineColor, RoundedCornerShape(1.5.dp))
+                )
+                Spacer(Modifier.width(4.dp))
+                Text("净值", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(16.dp))
+                Row(
+                    modifier = Modifier.width(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    repeat(3) {
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp).height(3.dp)
+                                .background(secondaryColor, RoundedCornerShape(1.dp))
+                        )
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(secondaryLabel, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
         // Chart area with Y-axis labels
         Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
             // Y-axis labels
@@ -189,6 +266,22 @@ fun TrendChart(
                     }
                     drawPath(linePath, lineColor, style = Stroke(width = 2.5.dp.toPx()))
 
+                    // Secondary dashed line
+                    secondaryPoints?.let { secPts ->
+                        if (secPts.isNotEmpty()) {
+                            val secPath = Path()
+                            secPts.forEachIndexed { i, pt ->
+                                val x = i * stepX
+                                val y = h - ((pt.value - minVal) / range * h).toFloat()
+                                if (i == 0) secPath.moveTo(x, y) else secPath.lineTo(x, y)
+                            }
+                            drawPath(secPath, secondaryColor, style = Stroke(
+                                width = 2.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+                            ))
+                        }
+                    }
+
                     // Dots at each point
                     points.forEachIndexed { i, pt ->
                         val x = i * stepX
@@ -223,7 +316,8 @@ fun TrendChart(
                                 color = MaterialTheme.colorScheme.inverseOnSurface
                             )
                             Text(
-                                formatMoney(pt.rawValue),
+                                if (showPercentage) "${if (pt.value >= 0) "+" else ""}${pt.value}%"
+                                else formatMoney(pt.rawValue),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
@@ -277,6 +371,10 @@ private fun formatYLabel(value: Double): String {
         abs >= 1_000 -> String.format("%.1fk", value / 1_000)
         else -> String.format("%.0f", value)
     }
+}
+
+private fun formatPctLabel(value: Double): String {
+    return if (value >= 0) "+${String.format("%.1f", value)}%" else "${String.format("%.1f", value)}%"
 }
 
 private fun formatMoney(value: BigDecimal): String {

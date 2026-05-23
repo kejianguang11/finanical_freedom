@@ -9,6 +9,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
@@ -127,6 +128,10 @@ class GoldProvider @Inject constructor(
     }
 
     override suspend fun fetchHistory(symbol: String, start: LocalDate, end: LocalDate): List<PriceResult> {
+        // 优先用东方财富 K 线 API 获取 AU9999 历史金价（国内金价对所有黄金持仓通用）
+        val emResult = fetchAU9999History(start, end)
+        if (emResult.isNotEmpty()) return emResult
+        // 降级：逐日拉取
         val results = mutableListOf<PriceResult>()
         var current = start
         while (current <= end) {
@@ -134,6 +139,47 @@ class GoldProvider @Inject constructor(
             current = current.plus(1, kotlinx.datetime.DateTimeUnit.DAY)
         }
         return results
+    }
+
+    /**
+     * 从东方财富 K 线 API 获取 AU9999 历史价格
+     * https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=118.AU9999&fields1=f1&fields2=f51,f52,f53&klt=101&beg=20260501&end=20260521
+     * f51=日期 f52=开盘 f53=收盘 f54=最高 f55=最低 f56=成交量 f57=成交额
+     */
+    private suspend fun fetchAU9999History(start: LocalDate, end: LocalDate): List<PriceResult> {
+        return try {
+            val beg = start.toString().replace("-", "")
+            val endStr = end.toString().replace("-", "")
+            val url = "https://push2his.eastmoney.com/api/qt/stock/kline/get" +
+                "?secid=118.AU9999&fields1=f1&fields2=f51,f52,f53&klt=101&beg=$beg&end=$endStr"
+
+            Log.d(TAG, "Fetching AU9999 history: $url")
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Referer", "https://quote.eastmoney.com")
+                .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                .get().build()
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: return emptyList()
+            Log.d(TAG, "AU9999 history response: ${body.take(300)}")
+
+            val root = json.parseToJsonElement(body).jsonObject
+            val data = root["data"]?.jsonObject ?: return emptyList()
+            val klines = data["klines"]?.jsonArray ?: return emptyList()
+            Log.d(TAG, "AU9999 klines count: ${klines.size}")
+
+            klines.mapNotNull { element ->
+                val line = element.jsonPrimitive.content
+                val parts = line.split(",")
+                if (parts.size < 3) return@mapNotNull null
+                val date = LocalDate.parse(parts[0])
+                val close = BigDecimal(parts[2])
+                PriceResult(symbol = "AU9999", price = close, currency = "CNY", date = date, name = "上海金AU9999")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "AU9999 history fetch FAILED: ${e.message}", e)
+            emptyList()
+        }
     }
 
     override suspend fun search(query: String): List<SearchResult> {

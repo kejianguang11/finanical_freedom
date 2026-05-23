@@ -10,7 +10,9 @@ sealed interface Route {
     @Serializable data object AccountList : Route
 
     // Main
-    @Serializable data object Home : Route
+    @Serializable data object Main : Route  // Pager-based main screen (replaces Home/Holdings/Earnings/Settings/Cash/Credit)
+
+    @Serializable data object Home : Route  // kept for backward compat
 
     @Serializable data class Holdings(val tab: Int = 0) : Route
 
@@ -24,7 +26,13 @@ sealed interface Route {
 
     @Serializable data class EditDeposit(val depositId: Long) : Route
 
+    @Serializable data class BankDeposits(val bankName: String, val status: String) : Route
+
     @Serializable data class AddHolding(val type: String) : Route  // STOCK / FUND / GOLD
 
     @Serializable data class EditHolding(val holdingId: Long) : Route
+
+    @Serializable data object Cash : Route
+
+    @Serializable data object Credit : Route
 }

@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +51,8 @@ fun PinUnlockScreen(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     var account: Account? by remember { mutableStateOf(null) }
     var pin by remember { mutableStateOf("") }
@@ -127,6 +131,8 @@ fun PinUnlockScreen(
                     return@Button
                 }
                 if (accountManager.verifyPin(currentAccount, pin)) {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
                     scope.launch {
                         accountManager.switchTo(currentAccount)
                         onUnlocked()

@@ -1,12 +1,17 @@
 package com.financial.freedom.domain.calculator
 
 import android.util.Log
+import com.financial.freedom.data.local.dao.CashTransactionDao
 import com.financial.freedom.data.local.dao.DailyBreakdownItemDao
 import com.financial.freedom.data.local.dao.DailySummaryDao
+import com.financial.freedom.data.local.dao.DebtDao
 import com.financial.freedom.data.local.dao.DepositDao
 import com.financial.freedom.data.local.dao.ExchangeRateDao
 import com.financial.freedom.data.local.dao.HoldingDao
 import com.financial.freedom.data.local.dao.PriceSnapshotDao
+import com.financial.freedom.data.local.dao.ReceivableDao
+import com.financial.freedom.data.local.dao.TransactionDao
+import com.financial.freedom.data.local.entity.CashTransaction
 import com.financial.freedom.data.local.entity.DailyBreakdownItem
 import com.financial.freedom.data.local.entity.DailySummary
 import com.financial.freedom.data.local.entity.PriceSnapshot
@@ -15,6 +20,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import java.math.BigDecimal
@@ -30,6 +36,10 @@ class BackfillEngine @Inject constructor(
     private val breakdownDao: DailyBreakdownItemDao,
     private val exchangeRateDao: ExchangeRateDao,
     private val priceSnapshotDao: PriceSnapshotDao,
+    private val cashTransactionDao: CashTransactionDao,
+    private val receivableDao: ReceivableDao,
+    private val debtDao: DebtDao,
+    private val transactionDao: TransactionDao,
     private val priceService: PriceService,
     private val valuationCalculator: ValuationCalculator,
     private val interestCalculator: InterestCalculator
@@ -41,15 +51,21 @@ class BackfillEngine @Inject constructor(
     suspend fun backfillIfNeeded(accountId: Long) {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         val lastDate = summaryDao.getLatestDate(accountId)
+        val count = summaryDao.countByAccountId(accountId)
 
-        Log.w(TAG, "backfillIfNeeded called, today=$today, lastDate=$lastDate, accountId=$accountId")
+        Log.w(TAG, "backfillIfNeeded called, today=$today, lastDate=$lastDate, count=$count, accountId=$accountId")
 
-        if (lastDate != null && lastDate >= today) {
+        if (lastDate != null && lastDate >= today && count >= 5) {
             Log.w(TAG, "Backfill not needed")
             return
         }
 
-        val startDate = if (lastDate == null) {
+        if (count < 5) {
+            Log.w(TAG, "Only $count summary rows — forcing full backfill")
+        }
+
+        val forceFull = lastDate == null || count < 5
+        val startDate = if (forceFull) {
             val deposits = depositDao.getAllList(accountId)
             val holdings = holdingDao.getAllList(accountId)
             val depositMin = deposits.minOfOrNull { it.startDate }
@@ -78,13 +94,46 @@ class BackfillEngine @Inject constructor(
         breakdownDao.deleteFromDate(fromDate, accountId)
         Log.w(TAG, "Deleted summaries and breakdowns from $fromDate onwards")
 
-        // 从 fromDate 的前一天开始回填（需要前一天的 totalValueCNY 计算 dayChange）
-        val safeStart = fromDate
+        // 从前一天开始回填，确保 fromDate 当天有正确的 previousTotalCNY 来计算 dayChange
+        val safeStart = fromDate.minus(1, DateTimeUnit.DAY)
         backfillRange(safeStart, today, accountId)
         Log.w(TAG, "markDirtyAndBackfill complete")
     }
 
     private suspend fun backfillRange(start: LocalDate, end: LocalDate, accountId: Long) {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
+        // 预先拉取所有持仓的历史价格，避免逐日 fallback 到 fetchPrice（返回实时价导致所有日期同价）
+        val holdings = holdingDao.getAllList(accountId)
+        val prefetchFailedSymbols = mutableSetOf<String>()
+        for (h in holdings) {
+            try {
+                val historyResults = priceService.fetchHistory(h.type, h.symbol, h.market, start, end)
+                if (historyResults.isNotEmpty()) {
+                    val snapshots = historyResults.map { r ->
+                        PriceSnapshot(
+                            holdingId = h.id, date = r.date, unitPrice = r.price,
+                            currency = r.currency, accountId = accountId
+                        )
+                    }
+                    priceSnapshotDao.insertAll(snapshots)
+                    if (h.name.isBlank()) {
+                        val nameFromApi = historyResults.firstOrNull { it.name.isNotBlank() }?.name
+                        if (nameFromApi != null) {
+                            holdingDao.updateName(h.id, nameFromApi)
+                        }
+                    }
+                    Log.w(TAG, "Pre-fetched ${snapshots.size} history snapshots for ${h.symbol}")
+                } else {
+                    Log.w(TAG, "WARNING: History pre-fetch returned EMPTY for ${h.symbol} (${h.type}/${h.market}) — prices will fall back to costPrice")
+                    prefetchFailedSymbols.add(h.symbol)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "WARNING: History pre-fetch FAILED for ${h.symbol}: ${e.message} — prices will fall back to costPrice")
+                prefetchFailedSymbols.add(h.symbol)
+            }
+        }
+
         val previousSummary = summaryDao.getByDate(start, accountId)
         val prevBreakdown = breakdownDao.getByDate(start, accountId)
 
@@ -112,6 +161,51 @@ class BackfillEngine @Inject constructor(
                 Log.e(TAG, "Backfill failed for $currentDate", e)
             }
             currentDate = currentDate.plus(1, kotlinx.datetime.DateTimeUnit.DAY)
+        }
+
+        // 到期存款处理移至此：确保历史 backfill 完成后才标记 settled，
+        // 避免 getActiveList() 在 backfill 循环中漏掉已到期但历史期仍应估值的存款
+        processDepositMaturities(end, accountId)
+
+        if (prefetchFailedSymbols.isNotEmpty()) {
+            Log.w(TAG, "Backfill complete with ${prefetchFailedSymbols.size} symbols missing price history: $prefetchFailedSymbols — affected holdings use costPrice fallback")
+        }
+        Log.w(TAG, "Backfill range $start ~ $end complete")
+    }
+
+    /**
+     * 处理到期存款：maturityDate <= today 且 status=active 的存款
+     * → status 变为 matured → 自动生成现金流水 → status 变为 settled
+     */
+    private suspend fun processDepositMaturities(asOfDate: LocalDate, accountId: Long) {
+        val activeDeposits = depositDao.getActiveList(accountId)
+        for (d in activeDeposits) {
+            if (d.maturityDate <= asOfDate) {
+                // 计算累计利息
+                val totalInterest = interestCalculator.accruedInterest(
+                    d.principal, d.interestRate, d.startDate, d.maturityDate, d.maturityDate
+                )
+                val totalAmount = d.principal.add(totalInterest)
+
+                // 更新状态为 matured
+                depositDao.update(d.copy(status = "matured"))
+
+                // 生成现金流水：存款到期入账
+                cashTransactionDao.insert(
+                    CashTransaction(
+                        accountId = accountId,
+                        date = d.maturityDate,
+                        amount = totalAmount,
+                        type = "DEPOSIT_MATURITY",
+                        note = "${d.name}到期入账，本金${d.principal} ${d.currency}，利息${totalInterest} ${d.currency}"
+                    )
+                )
+
+                // 更新状态为 settled
+                depositDao.update(d.copy(status = "settled"))
+
+                Log.w(TAG, "Deposit matured: ${d.name}, amount=$totalAmount, date=${d.maturityDate}")
+            }
         }
     }
 
@@ -149,8 +243,11 @@ class BackfillEngine @Inject constructor(
         var goldValue = BigDecimal.ZERO
 
         for (holding in holdings) {
+            // 成本日之前不参与估值，避免用未来价格回填历史
+            if (date < holding.costDate) continue
+            // 无价格快照时用成本价兜底，避免历史估值为 0 导致价格出现后单日跳变
             val price = getOrFetchPrice(holding.id, holding.type, holding.symbol, holding.market, date, accountId)
-            if (price == null) continue
+                ?: holding.costPrice
 
             val rate = if (holding.currency == "CNY") BigDecimal.ONE
             else getExchangeRate(holding.currency, "CNY", date)
@@ -165,8 +262,32 @@ class BackfillEngine @Inject constructor(
 
         val totalValueCNY = depositValue + stockValue + fundValue + goldValue
 
+        // 计算当日净入金（新增存款本金 + 股票买入成本），不计入收益率
+        var netInflow = BigDecimal.ZERO
+        var depositContribution = BigDecimal.ZERO
+        for (deposit in deposits) {
+            if (deposit.startDate == date) {
+                val rate = if (deposit.currency == "CNY") BigDecimal.ONE
+                else exchangeRates[deposit.currency] ?: BigDecimal.ONE
+                val principalCNY = deposit.principal.multiply(rate).setScale(2, RoundingMode.HALF_UP)
+                netInflow += principalCNY
+                depositContribution += principalCNY
+            }
+        }
+        // 买入交易成本计入 netInflow，避免加仓日资产突然增加导致虚假收益
+        // 注意：不用 holding.costDate，因为加仓后 costPrice/quantity 被更新为平均值，历史回溯会失真
+        val txs = transactionDao.getAllList(accountId).filter { it.date == date && it.type == "BUY" }
+        for (tx in txs) {
+            val h = holdings.firstOrNull { it.id == tx.holdingId } ?: continue
+            val rate = if (h.currency == "CNY") BigDecimal.ONE
+            else getExchangeRate(h.currency, "CNY", date)
+            val costCNY = tx.price.multiply(tx.quantity).add(tx.fee).multiply(rate).setScale(2, RoundingMode.HALF_UP)
+            netInflow += costCNY
+        }
+
+        // 一次 setScale 避免双重舍入导致 dayChange 与 breakdown 之和不一致
         val dayChange = if (previousTotalCNY != null) {
-            totalValueCNY.subtract(previousTotalCNY).setScale(2, RoundingMode.HALF_UP)
+            totalValueCNY.subtract(previousTotalCNY).subtract(netInflow).setScale(2, RoundingMode.HALF_UP)
         } else BigDecimal.ZERO
 
         val dayChangePct = if (previousTotalCNY != null && previousTotalCNY > BigDecimal.ZERO) {
@@ -174,18 +295,26 @@ class BackfillEngine @Inject constructor(
                 .multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
         } else BigDecimal.ZERO
 
+        val cashBal = cashTransactionDao.getCumulativeBalance(accountId, date)
+        val rcvTotal = receivableDao.getAllList(accountId).sumOf { it.amount }
+        val dbtTotal = debtDao.getAllList(accountId).sumOf { it.amount }
+        val netWorth = totalValueCNY.add(cashBal).add(rcvTotal).subtract(dbtTotal)
+
         val summary = DailySummary(
             date = date, totalValueCNY = totalValueCNY, dayChange = dayChange,
-            dayChangePct = dayChangePct, accountId = accountId
+            dayChangePct = dayChangePct, netInflow = netInflow, accountId = accountId,
+            netWorth = netWorth, cashBalance = cashBal
         )
 
-        val depositChange = if (prevDepositCNY != null) depositValue.subtract(prevDepositCNY).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
+        // stock/fund/gold 各自独立舍入，deposit 由减法反推确保 Σbreakdown.changeCNY == dayChange
         val stockChange = if (prevStockCNY != null) stockValue.subtract(prevStockCNY).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
         val fundChange = if (prevFundCNY != null) fundValue.subtract(prevFundCNY).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
         val goldChange = if (prevGoldCNY != null) goldValue.subtract(prevGoldCNY).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
+        // 存款变动 = dayChange - 其他分类变动，确保总和严格一致
+        val depositChangeExContribution = dayChange.subtract(stockChange).subtract(fundChange).subtract(goldChange)
 
         val breakdowns = listOf(
-            DailyBreakdownItem(date = date, type = "DEPOSIT", valueCNY = depositValue, changeCNY = depositChange, accountId = accountId),
+            DailyBreakdownItem(date = date, type = "DEPOSIT", valueCNY = depositValue, changeCNY = depositChangeExContribution, contribution = netInflow, accountId = accountId),
             DailyBreakdownItem(date = date, type = "STOCK", valueCNY = stockValue, changeCNY = stockChange, accountId = accountId),
             DailyBreakdownItem(date = date, type = "FUND", valueCNY = fundValue, changeCNY = fundChange, accountId = accountId),
             DailyBreakdownItem(date = date, type = "GOLD", valueCNY = goldValue, changeCNY = goldChange, accountId = accountId)
@@ -206,20 +335,24 @@ class BackfillEngine @Inject constructor(
         val exact = priceSnapshotDao.getByHoldingAndDate(holdingId, date, accountId)
         if (exact != null) return exact.unitPrice
 
-        // 降级：取最近缓存（不触发网络）
-        val cached = priceSnapshotDao.getLatest(holdingId, accountId)
+        // 降级：取该日期之前最近的价格，不用未来价格回填历史
+        val cached = priceSnapshotDao.getLatestBefore(holdingId, date, accountId)
         if (cached != null) return cached.unitPrice
 
-        // 无本地缓存时才尝试网络拉取
-        val result = priceService.fetchPrice(type, symbol, market, date)
-        if (result != null) {
-            priceSnapshotDao.insert(
-                PriceSnapshot(
-                    holdingId = holdingId, date = result.date, unitPrice = result.price,
-                    currency = result.currency, accountId = accountId
+        // 仅对「今天」尝试网络拉取实时价；历史日期已在 pre-fetch 阶段用 fetchHistory 获取，
+        // 若仍未命中缓存则说明该日期无真实历史数据，跳过比用实时价冒充历史价更好
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        if (date == today) {
+            val result = priceService.fetchPrice(type, symbol, market, date)
+            if (result != null) {
+                priceSnapshotDao.insert(
+                    PriceSnapshot(
+                        holdingId = holdingId, date = result.date, unitPrice = result.price,
+                        currency = result.currency, accountId = accountId
+                    )
                 )
-            )
-            return result.price
+                return result.price
+            }
         }
 
         return null

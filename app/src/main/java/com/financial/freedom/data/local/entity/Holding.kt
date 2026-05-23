@@ -3,19 +3,22 @@ package com.financial.freedom.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 
 @Entity(tableName = "holdings")
+@Serializable
 data class Holding(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val accountId: Long = 0,
-    val type: String,                 // STOCK / FUND / GOLD
+    val type: String,
     val symbol: String,
     val name: String,
-    val market: String = "",          // CN / US / HK
+    val market: String = "",
     val currency: String,
-    val quantity: BigDecimal,         // 股数 / 份额 / 克
-    val costPrice: BigDecimal,        // 成本单价
-    val costDate: LocalDate,
-    val note: String = ""
+    @Serializable(with = BigDecimalSerializer::class) val quantity: BigDecimal,
+    @Serializable(with = BigDecimalSerializer::class) val costPrice: BigDecimal,
+    @Serializable(with = LocalDateSerializer::class) val costDate: LocalDate,
+    val note: String = "",
+    val status: String = "active"
 )

@@ -20,6 +20,9 @@ object FinancialColors {
     val stock = Color(0xFFC0392B)
     val fund = Color(0xFF8B5CF6)
     val goldAsset = Color(0xFFB7930A)
+    val cash = Color(0xFF2E7D32)
+    val receivable = Color(0xFFE67E22)
+    val debt = Color(0xFFE74C3C)
 
     // 向后兼容
     val depositBg = Color(0xFFF0F4FA)

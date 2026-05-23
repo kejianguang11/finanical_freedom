@@ -6,12 +6,15 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.financial.freedom.data.local.AppDatabase
 import com.financial.freedom.data.local.dao.AccountDao
+import com.financial.freedom.data.local.dao.CashTransactionDao
 import com.financial.freedom.data.local.dao.DailyBreakdownItemDao
 import com.financial.freedom.data.local.dao.DailySummaryDao
+import com.financial.freedom.data.local.dao.DebtDao
 import com.financial.freedom.data.local.dao.DepositDao
 import com.financial.freedom.data.local.dao.ExchangeRateDao
 import com.financial.freedom.data.local.dao.HoldingDao
 import com.financial.freedom.data.local.dao.PriceSnapshotDao
+import com.financial.freedom.data.local.dao.ReceivableDao
 import com.financial.freedom.data.local.dao.TransactionDao
 import dagger.Module
 import dagger.Provides
@@ -28,7 +31,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "financial_freedom.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
 
     @Provides fun provideDepositDao(db: AppDatabase): DepositDao = db.depositDao()
@@ -46,6 +49,12 @@ object DatabaseModule {
     @Provides fun provideTransactionDao(db: AppDatabase): TransactionDao = db.transactionDao()
 
     @Provides fun provideAccountDao(db: AppDatabase): AccountDao = db.accountDao()
+
+    @Provides fun provideCashTransactionDao(db: AppDatabase): CashTransactionDao = db.cashTransactionDao()
+
+    @Provides fun provideReceivableDao(db: AppDatabase): ReceivableDao = db.receivableDao()
+
+    @Provides fun provideDebtDao(db: AppDatabase): DebtDao = db.debtDao()
 
     private val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -74,6 +83,63 @@ object DatabaseModule {
                 )
             """)
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_exchange_rates_from_to_date ON exchange_rates (fromCurrency, toCurrency, date)")
+        }
+    }
+
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS cash_transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    accountId INTEGER NOT NULL,
+                    date TEXT NOT NULL,
+                    amount TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS receivables (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    accountId INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    amount TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    expectedDate TEXT,
+                    note TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS debts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    accountId INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    amount TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    interestRate TEXT,
+                    note TEXT NOT NULL DEFAULT ''
+                )
+            """)
+        }
+    }
+
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE daily_summaries ADD COLUMN netInflow TEXT NOT NULL DEFAULT '0'")
+            db.execSQL("ALTER TABLE daily_breakdown_items ADD COLUMN contribution TEXT NOT NULL DEFAULT '0'")
+        }
+    }
+
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE holdings ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+        }
+    }
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE daily_summaries ADD COLUMN netWorth TEXT NOT NULL DEFAULT '0'")
+            db.execSQL("ALTER TABLE daily_summaries ADD COLUMN cashBalance TEXT NOT NULL DEFAULT '0'")
         }
     }
 }

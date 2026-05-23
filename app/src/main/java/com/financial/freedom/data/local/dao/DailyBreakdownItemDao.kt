@@ -12,6 +12,9 @@ interface DailyBreakdownItemDao {
     @Query("SELECT * FROM daily_breakdown_items WHERE date = :date AND accountId = :accountId")
     suspend fun getByDate(date: LocalDate, accountId: Long): List<DailyBreakdownItem>
 
+    @Query("SELECT * FROM daily_breakdown_items WHERE accountId = :accountId AND date BETWEEN :start AND :end ORDER BY date ASC")
+    suspend fun getByDateRange(start: LocalDate, end: LocalDate, accountId: Long): List<DailyBreakdownItem>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<DailyBreakdownItem>)
 

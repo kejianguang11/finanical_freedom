@@ -20,4 +20,10 @@ interface ExchangeRateDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(rates: List<ExchangeRate>)
+
+    @Query("SELECT * FROM exchange_rates ORDER BY date ASC")
+    suspend fun getAllList(): List<ExchangeRate>
+
+    @Query("DELETE FROM exchange_rates")
+    suspend fun deleteAll()
 }

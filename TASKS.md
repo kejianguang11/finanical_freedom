@@ -1,4 +1,4 @@
-# 开发任务拆解
+# 扶摇阁 — 开发任务拆解
 
 > 执行原则：按阶段顺序执行，每个任务完成后打勾 `[x]`。依赖关系严格遵守，不可跳过前置任务。
 
@@ -24,7 +24,16 @@
 | 13 - 测试数据 | done | TestDataGenerator ✅、设置页一键生成 ✅ |
 | 14 - Bug 修复 | done | 7 项修复（详见下方） ✅ |
 | 15 - 实时价格 & 视觉升级 | done | 6 个子任务（详见下方） ✅ |
-| 16 - 数据一致性 & Bug 修复 | **active** | 5 个子任务（详见下方） |
+| 16 - 数据一致性 & Bug 修复 | done | 5 个子任务 ✅ |
+| 17 - UI 视觉重设计 | done | 5 个子任务 ✅ |
+| 18 - 数据正确性修复 | done | 7 个子任务 ✅ |
+| 19 - 资产体系扩展 | done | 现金 + 应收 + 负债 + 存款到期 ✅ |
+| 20 - 更名 & 日期选择器 & Modified Dietz | pending | 7 个子任务 |
+| 21 - 全 App 连续滑动体系 | done | 8 个子任务（v3 核心架构） ✅ |
+| 22 - 导航优化 & 首页视觉升级 | done | 5 个子任务 ✅ |
+| 23 - 统一CSV & 名称回填 & 现金扣款 | pending | 6 个子任务 |
+| 24 - 自动搜索 & 港股搜索 & 黄金简化 & 多笔交易 | done | 8 个子任务 |
+| 25 - 持仓分组重设计 | pending | 7 个子任务（v17 核心特性） |
 
 ---
 
@@ -654,6 +663,142 @@
 
 ---
 
+## 阶段 18：数据正确性修复（2026-05-22 第五轮）
+
+> 依赖：阶段 0-17 全部完成
+> 执行顺序：18.1 → 18.2 → 18.3 → 18.4 → 18.5 → 18.6 → 18.7
+> 详见 PRD 第十六章
+
+### 18.1 BackfillEngine 对接 fetchHistory 获取真实历史价格
+
+**根因**：`getOrFetchPrice()` 调用 `fetchPrice()`，所有 Provider 的 `fetchPrice()` 都忽略 `date` 参数，永远返回实时价。`fetchHistory()` 已实现但从未被调用。
+
+- [x] `BackfillEngine.kt`：`backfillRange()` 预拉取历史数据阶段，对每个持仓调用 `fetchHistory(start, end)` 批量获取并写入 PriceSnapshot 缓存
+- [x] `BackfillEngine.kt`：`getOrFetchPrice()` 仅对「今天」尝试网络拉取实时价；历史日期若无缓存则跳过（不污染历史数据）
+- [x] `GoldProvider.kt`：`fetchHistory()` 对接东方财富历史金价 K 线 API（secid=118.AU9999）
+- [x] `HKStockProvider.kt`：`fetchHistory()` 对接东方财富港股历史 K 线 API（secid=116.xxxxx）
+- [x] `AStockProvider` / `CNFundProvider`：`fetchHistory()` 已有正确实现，无需改动
+
+### 18.2 修复测试数据与真实价格不连续
+
+**根因**：测试数据生成随机游走价格，与真实市场价格差异巨大。`fetchLivePrices()` 拉取真实价后，今日总值与昨日 DailySummary（用随机游走价算的）对比 → 虚假巨幅变动（如茅台 -31%）。
+
+- [x] `HomeViewModel.kt`：`computeFromEntities()` 改为用昨日的真实 PriceSnapshot 计算昨日总值，不再依赖 DailySummary 中的历史汇总值
+- [x] 昨日股票/基金/黄金总值 = 各持仓 quantity × yesterdayPrice × rate 求和（yesterdayPrice 来自 getByHoldingAndDate 或 getLatestBefore）
+- [ ] `HomeViewModel.kt`：`fetchLivePrices()` 增加拉取「昨日收盘价」逻辑（computeFromEntities 的修复已解决核心问题，此项可选）
+- [ ] `TestDataGenerator.kt`：生成测试数据后，可选地用 `fetchHistory` 拉取真实历史价格覆盖随机数据
+- [ ] 新增数据标记：测试数据标记 `dataSource` 字段（后续迭代）
+
+### 18.3 删除黄金缓存强制清除逻辑
+
+**根因**：`HomeViewModel.clearGoldPriceCache()` 每次启动删除所有黄金快照，导致回填前打开详情页无数据，回填后全部同一实时价。
+
+- [x] `HomeViewModel.kt`：删除 `clearGoldPriceCache()` 方法及其在 `init` 中的调用
+- [x] `HomeViewModel.kt`：删除 `cacheCleared` 标志位
+- [ ] `DatabaseModule.kt`：添加 migration，一次性清理旧的黄金价格缓存（若需要，后续迭代）
+
+### 18.4 修复 HoldingDetailViewModel 前一日价格查询
+
+**根因**：`getPrevious()` 取第二新快照，若同日期有多条快照则可能取到同一天的数据。应取 `date < today` 的最新快照。
+
+- [x] `PriceSnapshotDao.kt`：新增 `getLatestBefore(holdingId, date, accountId)` 查询方法
+- [x] `HoldingDetailViewModel.kt`：`renderWithCache()` 中 `prevPrice` 改用 `getLatestBefore(h.id, today, accountId)` 替代 `getPrevious()`
+- [x] `HoldingsViewModel.kt`：`toHoldingDisplay()` 中同样改用 `getLatestBefore` 获取昨日价
+
+### 18.5 趋势图增加百分比标注
+
+**根因**：`TrendChart` Y 轴只显示绝对金额，用户需要看到涨跌百分比。
+
+- [x] `TrendChart.kt`：新增 `showPercentage` 参数，百分比模式下 Y 轴和 Tooltip 显示相对于首日的涨跌百分比
+- [x] `TrendChart.kt`：新增 `formatPctLabel()` 函数格式化百分比标签
+- [x] `HoldingDetailScreen.kt`：图表卡片标题栏增加 ¥ / % 切换按钮（金色），默认百分比模式
+
+### 18.6 港股历史数据对接
+
+**根因**：`HKStockProvider.fetchHistory()` 返回空列表，港股无趋势图。
+
+- [x] `HKStockProvider.kt`：实现 `fetchHistory()`，对接东方财富港股 K 线 API（secid=116.xxxxx）
+- [ ] `HKStockProvider.kt`：实现 `search()` 方法（后续迭代）
+
+### 18.7 端到端验证
+
+- [x] APK 编译通过（`./gradlew assembleDebug` 成功）
+- [ ] 生成测试数据 → 打开茅台详情页 → 确认趋势图非平线、今日涨跌合理（<±10%）
+- [ ] 打开黄金详情页 → 确认有趋势图、非空白
+- [ ] 打开腾讯详情页 → 确认有趋势图
+- [ ] 首页日变动幅度合理（不是 -31% 这种极端值）
+- [ ] 下拉刷新后数据保持一致
+- [ ] **无法自动验证**：无 Android 设备/模拟器连接，需用户手动安装 APK 测试
+
+---
+
+## 阶段 19：资产体系扩展（现金 + 应收 + 负债 + 存款到期）
+
+> 依赖：阶段 0-18 全部完成
+> 执行顺序：19.1 → 19.2 → 19.3 → 19.4 → 19.5 → 19.6 → 19.7
+
+### 19.1 数据层新增
+
+- [x] `CashTransaction.kt` — Entity（id, accountId, date, amount, type, note）
+- [x] `Receivable.kt` — Entity（id, accountId, name, amount, date, expectedDate, note）
+- [x] `Debt.kt` — Entity（id, accountId, name, amount, date, interestRate, note）
+- [x] `CashTransactionDao.kt` — CRUD + getByDateRange
+- [x] `ReceivableDao.kt` — CRUD + getAll
+- [x] `DebtDao.kt` — CRUD + getAll
+- [x] `AppDatabase.kt` — 注册新 Entity + DAO，version bump 到 5
+
+### 19.2 现金余额管理
+
+- [x] `CashRepository.kt` — 封装流水 CRUD，提供 `getBalance(): BigDecimal`（求和所有流水）
+- [x] `CashViewModel.kt` — 余额展示 + 流水列表 + 入金/出金弹窗
+- [x] `CashScreen.kt` — 余额卡片 + 流水列表 + 入金/出金按钮
+- [x] 入金/出金弹窗：金额输入 + 备注 → 写入 CashTransaction + 刷新
+
+### 19.3 应收款管理
+
+- [x] `ReceivableRepository.kt` — 封装 CRUD
+- [x] `CreditViewModel.kt`（复用，管理应收 + 负债）
+- [x] `CreditScreen.kt` — 应收款区域 + 负债区域上下分区
+- [x] 新增/编辑/删除应收款弹窗
+
+### 19.4 负债管理
+
+- [x] `DebtRepository.kt` — 封装 CRUD
+- [x] 新增/编辑/删除负债弹窗
+- [x] 应收净额 = 应收合计 - 负债合计（底部固定显示）
+
+### 19.5 存款到期自动处理
+
+- [x] `BackfillEngine.kt`：每日回填时检测 `maturityDate <= today && status == "active"` 的存款
+  - 更新 status → "matured"
+  - 自动生成 CashTransaction（本金 + 累计利息，type = DEPOSIT_MATURITY）
+  - 更新 status → "settled"
+- [x] `DepositDao.kt`：新增 `getMaturedList(accountId)` / `getSettledList(accountId)` / `getInactiveFlow`
+- [x] `HoldingsViewModel.kt`：存款 Tab 拆分为两个子 Tab（持有中 / 已到期）
+  - 持有中：status=active
+  - 已到期：status=matured 或 settled
+- [x] 已到期存款卡片：显示本息合计、到期日期、赎回状态
+
+### 19.6 首页重构为净资产体系
+
+- [x] `HomeViewModel.kt`：净资产 = 现金余额 + 存款(active) + 持仓市值 + 应收款 - 负债
+- [x] `HomeScreen.kt`：净资产卡片（资产/负债分区，2×3 网格点击跳转）
+- [x] `HomeScreen.kt`：今日收益明细卡片（按资产类型着色）
+- [x] `HomeUiState.kt`：新增 cashBalance, receivablesTotal, debtsTotal, netWorth 字段
+- [x] 净资产各分项点击跳转对应 Tab（现金→CashScreen，存款→存款Tab，持仓→持仓Tab，应收/负债→CreditScreen）
+
+### 19.7 持仓页 Tab 重构
+
+- [x] `HoldingsScreen.kt`：顶层 Tab 改为 `[持仓, 存款, 现金, 信用]`
+  - 持仓 Tab 内：子 Tab `[股票, 基金, 黄金]`
+  - 存款 Tab 内：子 Tab `[持有中, 已到期]`
+  - 现金 Tab：跳转 CashScreen
+  - 信用 Tab：跳转 CreditScreen
+- [x] `AppNavigation.kt`：新增 Cash、Credit 路由
+- [x] `FinancialFreedomApp.kt`：subRoutes 新增 Cash/Credit，底部导航适配
+
+---
+
 ## 统计
 
 | 阶段 | 任务数 |
@@ -676,4 +821,467 @@
 | 15 - 实时价格 & 视觉升级 | 6 |
 | 16 - 数据一致性 & Bug 修复 | 5 |
 | 17 - UI 视觉重设计 | 5 |
-| **合计** | **78** |
+| 18 - 数据正确性修复 | 7 |
+| 19 - 资产体系扩展 | 7 |
+| 20 - 更名 & 日期选择器 & Modified Dietz | 7 |
+| 21 - 全 App 连续滑动体系 | 8 |
+| 22 - 导航优化 & 首页视觉升级 | 5 |
+| 23 - 统一CSV & 名称回填 & 现金扣款 | 6 |
+| **合计** | **125** |
+
+---
+
+## 阶段 20：更名 & 日期选择器 & Modified Dietz（2026-05-22）
+
+> 依赖：阶段 0-19 全部完成
+> 执行顺序：20.1 → 20.2 → 20.3 → 20.4 → 20.5 → 20.6 → 20.7
+> 详见 PRD 第十七～十九章、UI_DESIGN.md 6.6
+
+### 20.1 应用更名
+
+- [ ] `strings.xml`：`app_name` 从「财富自由」改为「扶摇阁」
+- [ ] `PRD.md` / `TASKS.md` / `UI_DESIGN.md` / `README.md` / `CLAUDE.md`：项目名称统一改为扶摇阁
+
+### 20.2 EditDepositScreen 日期选择器
+
+- [ ] `EditDepositScreen.kt`：存入日期 + 到期日期接入 DatePickerDialog（参照 AddDepositScreen 实现）
+
+### 20.3 EditHoldingScreen 日期选择器
+
+- [ ] `EditHoldingScreen.kt`：买入日期接入 DatePickerDialog（参照 AddHoldingScreen 实现）
+
+### 20.4 CreditScreen.ReceivableDialog 日期选择器
+
+- [ ] `CreditScreen.kt`：ReceivableDialog 预计归还日接入 DatePickerDialog
+
+### 20.5 数据模型：DailySummary 新增 netInflow
+
+- [ ] `DailySummary.kt`：新增 `netInflow: BigDecimal` 字段
+- [ ] `AppDatabase.kt`：version bump 到 6
+- [ ] `DailyBreakdownItem.kt`：新增 `contribution: BigDecimal` 字段（当日入金本金）
+
+### 20.6 BackfillEngine / HomeViewModel 剔除入金计算
+
+- [ ] `BackfillEngine.kt`：`backfillDay()` 中 dayChange = todayTotal - yesterdayTotal - netInflow
+- [ ] `HomeViewModel.kt`：`computeFromEntities()` 同步修正
+- [ ] `HomeUiState`：新增 `cumulativeContributions`、`cumulativeReturn`、`cumulativeReturnPct` 字段
+
+### 20.7 HomeScreen 累计收益展示
+
+- [ ] `HomeScreen.kt`：今日收益卡片底部加累计投入/收益/收益率行（参照 UI_DESIGN.md 6.4）
+
+---
+
+## 阶段 21：全 App 连续滑动体系（v3 核心架构）
+
+> 依赖：阶段 0-19 全部完成（20 可并行）
+> 执行顺序：21.1 → 21.2 → 21.3 → 21.4 → 21.5 → 21.6 → 21.7 → 21.8
+> 详见 UI_DESIGN.md 第六、七、十二章
+
+### 21.1 全局 Pager 骨架
+
+- [x] 新建 `MainPagerScreen.kt`：10 页 `HorizontalPager`，`userScrollEnabled = true`
+- [x] 定义页面枚举 `PagerPage`（HOME=0, STOCK=1, FUND=2, GOLD=3, DEPOSIT_ACTIVE=4, DEPOSIT_MATURED=5, CASH=6, CREDIT=7, EARNINGS=8, SETTINGS=9）
+- [x] `BottomNavBar` 改为接收 `currentPage: Int`，点击触发 `animateScrollToPage(anchor)`
+- [x] 底部导航高亮映射：page 0→首页, 1-7→持仓, 8→收益, 9→设置
+- [x] `AppNavigation.kt`：详情页（HoldingDetail、AddHolding 等）保留 NavHost overlay，主页面切换改为 Pager 滑动
+
+### 21.2 Section 指示器组件
+
+- [x] 新建 `SectionIndicator` (集成在 MainPagerScreen.kt)
+- [x] 参数：`categoryName: String`、`subItems: List<String>`、`currentIndex: Int`
+- [x] 渲染：分类标签 12sp + 子项名称列表 15sp + 圆点指示器（8dp 金色/灰色）
+- [x] 仅在投资段（page 1-3）和存款段（page 4-5）显示
+- [x] 其他 page 不显示 SectionIndicator
+
+### 21.3 首页嵌入 Pager
+
+- [x] `HomeScreen` 嵌入 Pager page 0
+- [x] 资产卡片点击改为 `scrollToPage(n)`（投资→1, 存款→4, 现金→6, 信用→7）
+- [x] 总资产 + 今日收益 + 4 资产卡片（v6 设计）
+
+### 21.4 投资段（股票/基金/黄金）重构
+
+- [x] 将 `HoldingsScreen` 的股票/基金/黄金三页拆入 Pager pages 1-3
+- [x] 每页：SectionIndicator + LazyColumn + FAB
+- [x] 共享 `HoldingsViewModel`，数据按 page 位置过滤
+- [x] FAB 点击 → NavHost overlay `AddHoldingScreen(type)`
+
+### 21.5 存款段（持有中/已到期）重构
+
+- [x] 将存款持有中/已到期拆入 Pager pages 4-5
+- [x] 共享 `HoldingsViewModel` 存款数据
+- [x] FAB 点击 → NavHost overlay `AddDepositScreen`
+
+### 21.6 现金 + 信用嵌入 Pager
+
+- [x] `CashScreen` 嵌入 Pager page 6（不再独立 navigate）
+- [x] `CreditScreen` 嵌入 Pager page 7（不再独立 navigate）
+- [x] 添加/编辑操作仍走 NavHost overlay
+
+### 21.7 收益 + 设置嵌入 Pager
+
+- [x] `EarningsScreen` 嵌入 Pager page 8
+- [x] `SettingsScreen` 嵌入 Pager page 9
+
+### 21.8 收尾动画与边界
+
+- [x] Pager 页面切换动画（`animateScrollToPage` 流畅过渡）
+- [x] 边界处理：page 0 不可左滑，page 9 不可右滑（`beyondViewportPageCount = 0`）
+- [ ] `prefers-reduced-motion` 检查（开启时 duration=0）→ 非关键，后续补充
+- [ ] 全链路滑动测试：首页→股票→基金→黄金→持有中→已到期→现金→信用→收益→设置
+
+### 滑动链路验证清单
+
+```
+[x] 首页右滑 → 投资·股票
+[x] 投资·股票右滑 → 投资·基金
+[x] 投资·基金右滑 → 投资·黄金
+[x] 投资·黄金右滑 → 存款·持有中
+[x] 存款·持有中右滑 → 存款·已到期
+[x] 存款·已到期右滑 → 现金
+[x] 现金右滑 → 信用
+[x] 信用右滑 → 收益
+[x] 收益右滑 → 设置
+[ ] 设置不能右滑（边界）
+[ ] 首页不能左滑（边界）
+[ ] 底部导航点击「持仓」→ 跳到投资·股票(page 1)
+[ ] 底部导航点击「收益」→ 跳到收益(page 8)
+[ ] 首页资产网格点「现金」→ 跳到现金(page 6)
+```
+
+---
+
+## 阶段 22：导航优化 & 首页视觉升级（2026-05-22）
+
+> 依赖：阶段 0-21 全部完成
+> 执行顺序：22.1 → 22.2 → 22.3 → 22.4 → 22.5
+> 详见 PRD 第二十章、UI_DESIGN.md 6.3-6.5
+
+### 22.1 Category 快速跳转导航条
+
+- [ ] `MainPagerScreen.kt`：新增 `CategoryNavStrip` 组件
+  - 4 个分类 chip：投资 / 存款 / 现金 / 信用
+  - 当前分类金色文字 + 2dp 底部指示线，其他灰色
+  - 仅在 page 1-7 显示
+  - 映射：投资→page 1, 存款→page 4, 现金→page 6, 信用→page 7
+  - 接受 `onCategoryClick: (Int) -> Unit` 回调，调用 `animateScrollToPage`
+
+### 22.2 SectionIndicator 可点击
+
+- [ ] `MainPagerScreen.kt`：`SectionIndicator` 子项名称改为可点击
+  - 股票/基金/黄金 → 点击跳转到对应 page (1/2/3)
+  - 持有中/已到期 → 点击跳转到对应 page (4/5)
+  - 当前项保持金色高亮
+
+### 22.3 首页资产配置占比条
+
+- [ ] `HomeScreen.kt`：新增 `AllocationBar` 组件
+  - 堆叠水平条：各段宽度 ∝ 该类资产占总资产比例
+  - 段颜色：投资=gold, 存款=deposit, 现金=cash, 应收=receivable
+  - 下方标签：类别名称 + 百分比
+  - 最小段宽 4dp，无数据类别不显示
+  - 容器白色 ElevatedCard，16dp 圆角
+
+### 22.4 日期选择器补全
+
+- [ ] `CreditScreen.kt`：`DebtDialog` 新增日期字段 + DatePickerDialog
+- [ ] `AddHoldingScreen.kt`：替换 emoji 📅 为 Material Icon `DateRange`
+- [ ] `AddHoldingScreen.kt`：统一 clickable 模式（直接放 modifier 上，与 Edit 页面一致）
+
+### 22.5 编译验证
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 无编译错误和警告
+
+---
+
+## 阶段 23：统一CSV & 名称回填 & 现金扣款（2026-05-22）
+
+> 依赖：阶段 0-22 全部完成
+> 执行顺序：23.1 → 23.2 → 23.3 → 23.4 → 23.5 → 23.6
+> 详见 PRD 第二十二章
+
+### 23.1 统一 CSV 导出
+
+- [ ] `CsvExporter.kt`：新增 `exportAll(accountId, uri)` 方法
+  - 查询所有 Deposit + Holding，写入单一 `assets.csv`
+  - 列：type,name,bank,symbol,market,currency,principal,quantity,cost_price,interest_rate,start_date,end_date,note
+  - 存款填充：name,bank,currency,principal,interest_rate,start_date,end_date
+  - 股票/基金填充：symbol,market,currency,quantity,cost_price,start_date（name 留空）
+  - 黄金填充：symbol=XAU,currency,quantity,cost_price,start_date（name 留空）
+- [ ] 删除旧方法：`exportDeposits()`, `exportHoldings()`, `exportTransactions()`
+- [ ] `SettingsViewModel.kt`：合并为 `exportAssets(uri)` 单方法
+- [ ] `SettingsScreen.kt`：导出入口合并为单按钮"导出资产 → assets.csv"
+
+### 23.2 统一 CSV 导入
+
+- [ ] `CsvImporter.kt`：新增 `importAll(uri, accountId)` 方法
+  - 按 `type` 列分发：DEPOSIT→插入 Deposit，STOCK/FUND/GOLD→插入 Holding
+  - GOLD 自动设置 name="黄金", symbol="XAU"
+  - STOCK/FUND name 留空（后续 API 回填）
+- [ ] 删除旧方法：`importDeposits()`, `importHoldings()`
+- [ ] `SettingsViewModel.kt`：合并为 `importAssets(uri)` 单方法
+- [ ] `SettingsScreen.kt`：导入预览对话框适配新格式
+
+### 23.3 名称自动回填
+
+- [ ] `HoldingDao.kt`：新增 `updateName(id, name)` 方法
+- [ ] `HomeViewModel.kt`：`fetchLivePrices()` 拉取价格后，检查 `holding.name` 为空则用 API 返回名称填充
+- [ ] `BackfillEngine.kt`：拉取历史价格时同样回填空名称
+
+### 23.4 AddDepositScreen 现金扣除
+
+- [ ] `AddDepositScreen.kt`：备注后、保存前增加 Switch "从现金中扣除"
+- [ ] `AddDepositViewModel.kt`：注入 `CashTransactionDao`
+  - `save()` 新增 `deductFromCash: Boolean` 参数
+  - true 时创建 CashTransaction(type=ASSET_PURCHASE, amount=-principal, date=startDate)
+
+### 23.5 AddHoldingScreen 现金扣除
+
+- [ ] `AddHoldingScreen.kt`：备注后、保存前增加 Switch "从现金中扣除"
+- [ ] `AddHoldingViewModel.kt`：注入 `CashTransactionDao`
+  - `save()` 新增 `deductFromCash: Boolean` 参数
+  - true 时扣除金额=quantity×cost_price（黄金直接=cost_price）
+  - 创建 CashTransaction(type=ASSET_PURCHASE, amount=负数)
+- [ ] `CashTransaction.kt` 实体 type 字段文档更新（增加 ASSET_PURCHASE 类型）
+
+### 23.6 编译验证
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 无编译错误和警告
+
+---
+
+## 阶段 24：自动搜索 & 港股搜索 & 黄金简化 & 多笔交易（2026-05-22）
+
+> 依赖：阶段 0-23 全部完成
+> 执行顺序：24.1 → 24.2 → 24.3 → 24.4 → 24.5 → 24.6 → 24.7 → 24.8
+> 详见 PRD 第二十三章、UI_DESIGN.md 第十三章
+
+### 24.1 存款去名称
+
+- [x] `AddDepositScreen.kt`：删除"存款名称"输入框，保存时 `name = bank`
+- [x] `EditDepositScreen.kt`：同步删除名称字段，编辑时不再显示
+- [x] 存款卡片：标题改为只显示银行名（原先显示名称 + 银行）
+- [x] `Deposit.kt` 实体不修改（保留 `name` 列，值自动等于 `bank`）
+
+### 24.2 股票/基金代码输入自动搜索
+
+- [x] `AddHoldingScreen.kt`：代码输入框改造
+  - 删除搜索图标按钮
+  - 输入文本变化 → 300ms 去抖 → 自动调用 `viewModel.search(query)`
+  - 搜索中显示 `CircularProgressIndicator`（16dp，在输入框右侧）
+  - 搜索结果以下拉列表形式覆盖在输入框下方（`DropdownMenu` 或自定义 `Popup`）
+  - 最多显示 8 条结果，超出可滚动
+  - 选中某条 → 自动填入 symbol、name、market → 下拉消失
+  - 点击输入框外区域或清空输入 → 下拉消失
+  - 无结果时显示"未找到匹配结果"
+- [x] `AddHoldingViewModel.kt`：新增 `search()` 方法，调用 `PriceService.searchAll()`
+  - 暴露 `searchResults: StateFlow<List<SearchResult>>` + `isSearching: StateFlow<Boolean>`
+- [x] 搜索仅对股票和基金类型触发，黄金类型不搜索
+
+### 24.3 港股搜索实现
+
+- [x] `HKStockProvider.kt`：实现 `search()` 方法
+  - 对接东方财富港股搜索 API
+  - 返回 `SearchResult(symbol, name, market="HK", type="STOCK")`
+- [x] `PriceService.kt`：`searchAll()` 中加入 `hkStockProvider.search(query)` 调用
+
+### 24.4 黄金表单简化
+
+- [x] `AddHoldingScreen.kt`：黄金表单改造
+  - 删除代码、名称、市场字段
+  - 保留：克数、单价（元/克）、购买日期
+  - 买入总价实时预览
+  - 保存时：`symbol = "XAU"`, `name = "黄金"`, `market = ""`, `costPrice = 克数 × 单价`
+- [x] `EditHoldingScreen.kt`：黄金编辑同步改造（从 costPrice 反推单价展示）
+
+### 24.5 Holding 实体新增 status 字段
+
+- [x] `Holding.kt`：新增 `val status: String = "active"`（active / closed）
+- [x] `AppDatabase.kt`：version bump 到 7，添加 MIGRATION_6_7
+- [x] DAO 查询：列表查询默认过滤 `status = "active"`
+- [x] `DatabaseModule.kt`：注册 MIGRATION_6_7
+
+### 24.6 持仓详情页加仓/减仓按钮
+
+- [x] `HoldingDetailScreen.kt`：交易记录上方新增 `[+ 加仓]` `[- 减仓]` 按钮
+- [x] 仅非黄金类型且 status=active 时显示
+- [x] 已清仓显示"已清仓"标签
+
+### 24.7 加仓/减仓弹窗
+
+- [x] `PositionDialogs.kt`：`AddPositionDialog` 组件
+  - 当前持仓信息 + 买入数量/价格/日期输入
+  - 实时预览：加仓后股数、加权成本均价、总成本
+  - 可选 Switch "从现金中扣除"
+  - 输入校验：数量 > 0
+- [x] `PositionDialogs.kt`：`ReducePositionDialog` 组件
+  - 当前持仓信息 + 卖出数量/价格/日期输入
+  - 实时预览：剩余股数、实现盈亏
+  - 可选 Switch "收入计入现金"
+  - 全部卖出时二次确认弹窗
+- [x] `HoldingDetailViewModel.kt`：新增 `addPosition()` / `reducePosition()` 方法
+  - 注入 `TransactionDao`、`CashTransactionDao`
+  - 加权平均成本计算 + 实现盈亏计算 + 现金流水
+
+### 24.8 编译验证
+
+- [x] `./gradlew assembleDebug` 编译通过
+- [x] 无编译错误和警告
+
+---
+
+## 阶段 25：持仓分组重设计（v17 — 2026-05-23）
+
+> 依赖：阶段 0-24 全部完成
+> 执行顺序：25.1 → 25.2 → 25.3 → 25.4 → 25.5 → 25.6 → 25.7
+> 详见 PRD 第二十五章、UI_DESIGN.md 第十四章
+
+### 25.1 数据层：Display 数据类 + 分组逻辑
+
+- [ ] `HoldingsViewModel.kt`：新增 Display 数据类
+  - `BankGroupDisplay`（bank, depositCount, totalPrincipal, totalCurrentValue, todayTotalInterest, weightedProgress, nearestMaturity, currency）
+  - `HoldingGroupDisplay`（symbol, name, market, type, totalQuantity, avgCost, currentPrice, totalPnL, totalPnLPct, todayChange, isUp, marketValue, buyRecords: List<BuyRecordDisplay>）
+  - `BuyRecordDisplay`（transactionId, date, type, quantity, price, cost, currentValue, pnl, pnlPct, isUp）
+- [ ] `HoldingsViewModel.kt`：新增分组方法
+  - `toBankGroupList(deposits, today, accountId)` → 按 bank 分组，聚合统计
+  - `toHoldingGroupList(holdings, today, accountId)` → 按 symbol 分组，聚合 + 拉取 Transaction
+- [ ] `HoldingsUiState`：新增字段
+  - `bankGroups: List<BankGroupDisplay>`
+  - `maturedBankGroups: List<BankGroupDisplay>`
+  - `stockGroups: List<HoldingGroupDisplay>`
+  - `fundGroups: List<HoldingGroupDisplay>`
+  - 保留原有 flat lists 供 SectionIndicator 汇总用
+
+### 25.2 首页金额完整展示（去掉"万"）
+
+- [ ] `HomeScreen.kt`：重写 `formatMoneyShort()` → 输出完整数字（带千位分隔符，如 ¥420,000）
+- [ ] `HomeScreen.kt`：重写 `formatNetWorthShort()` → 同上
+- [ ] `HomeScreen.kt`：更新 `formatAllocationValue()` 添加 `¥` 前缀
+- [ ] 验证：首页 2×2 网格卡片全部显示完整数字
+
+### 25.3 UI：CategoryNavStrip + SectionIndicator 汇总行
+
+- [ ] `MainPagerScreen.kt`：注入 `HoldingsViewModel` 获取汇总数据
+- [ ] `MainPagerScreen.kt`：`CategoryNavStrip` 新增汇总行
+  - chip 行下方显示「当前分类总计 + 今日」
+  - 随 currentPage 切换：投资总计 / 存款总计 / 现金余额 / 应收净额
+- [ ] `MainPagerScreen.kt`：`SectionIndicator` 新增子类汇总行
+  - 圆点下方显示「子类总市值 + 今日涨跌」
+  - 随 currentPage 切换：股票市值 / 基金市值 / 黄金市值 / 持有中估值 / 已到期本息
+
+### 25.4 UI：存款分组（银行组卡片 + 银行详情页）
+
+- [ ] `HoldingsPages.kt`：新增 `BankGroupCard` composable
+  - 银行名 + 存单数、本金合计、当前估值、今日利息
+  - 加权进度条、最近到期日、右侧箭头
+  - 左侧 4dp 蓝色条
+- [ ] `HoldingsPages.kt`：`ActiveDepositsPage` 改为使用 `BankGroupCard`（数据源 `state.bankGroups`）
+- [ ] `HoldingsPages.kt`：`MaturedDepositsPage` 改为使用 `BankGroupCard`（数据源 `state.maturedBankGroups`，灰色调）
+- [ ] 新建 `BankDepositsScreen.kt` + `BankDepositsViewModel.kt`
+  - 顶部汇总卡片 + 存单列表
+  - 每张存单显示完整信息 + 编辑/删除按钮
+  - 顶部栏 [+] 快速添加存单到该银行
+- [ ] `Route.kt`：新增 `BankDeposits(bankName: String, status: String)` 路由
+- [ ] `AppNavigation.kt`：注册路由 + 导航逻辑（`onDepositClick` → `BankDeposits` 替代 `EditDeposit`）
+
+### 25.5 UI：股票/基金分组（标的组卡片）
+
+- [ ] `HoldingsPages.kt`：新增 `HoldingGroupCard` composable
+  - 折叠态：名称、代码、市场标签、当前价、今日涨跌、总持仓信息、盈亏
+  - 「▶ N 笔买入记录 [展开]」按钮
+  - 展开态：买入记录列表（每笔：日期、数量、价格、成本、当前市值、盈亏）
+  - [+ 加仓] [- 减仓] 按钮（展开态底部）
+  - 左侧 4dp 类型色条
+- [ ] `HoldingsPages.kt`：`StockPage` 改为使用 `HoldingGroupCard`（数据源 `state.stockGroups`）
+- [ ] `HoldingsPages.kt`：`FundPage` 改为使用 `HoldingGroupCard`（数据源 `state.fundGroups`，紫色条）
+- [ ] `GoldPage` 保持不变
+
+### 25.6 导航 & 数据流调整
+
+- [ ] `MainPagerScreen.kt`：`onDepositClick` 改为传递 bank + status 而非 depositId
+- [ ] `AppNavigation.kt`：适配新的存款点击回调（bank → BankDepositsScreen）
+- [ ] `HoldingsViewModel.kt`：确保原有 flat lists 仍可正常获取（用于 SectionIndicator 汇总）
+- [ ] 边界处理：空银行组、空标的组、无买入记录时的占位提示
+
+### 25.7 编译验证 & 收尾
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 无编译错误和警告
+- [ ] 数据流验证：银行分组正确、股票分组正确、汇总数据准确
+
+---
+
+## 阶段 26：一键重算收益 + 显示倍率
+
+### 26.1 基础设施：DisplaySettings
+
+- [ ] 新建 `com.financial.freedom.domain.settings.DisplaySettings` 单例
+  - 读写 SharedPreferences（key `display_multiplier`），默认 1.0
+  - 暴露 `StateFlow<BigDecimal>` 供各 ViewModel 收集
+  - 方法 `setMultiplier(value: BigDecimal)` + `getMultiplier(): BigDecimal`
+- [ ] Hilt 模块注册 `DisplaySettings` 为 `@Singleton`
+
+### 26.2 集中化金额格式化
+
+- [ ] 新建 `com.financial.freedom.ui.common.FormatUtils.kt`
+  - `formatMoney(value: BigDecimal, multiplier: BigDecimal = BigDecimal.ONE): String`
+  - 逻辑：`value * multiplier` → 千分位 + 2 位小数
+  - 配套 `formatMoneyShort`（0 位小数）、`formatSignedChange`、`parseMoneyValue`
+- [ ] 重构 `HomeViewModel.formatMoney` 引用为 `FormatUtils.formatMoney`
+- [ ] 重构 `HomeScreen.formatMoneyShort` 引用为 `FormatUtils.formatMoneyShort`
+- [ ] 重构 `HoldingsViewModel.formatMoney` 引用为 `FormatUtils.formatMoney`
+- [ ] 重构 `EarningsScreen.formatMoney` 引用为 `FormatUtils.formatMoney`
+
+### 26.3 一键重算收益 — ViewModel
+
+- [ ] `SettingsViewModel` 新增状态：
+  - `showRecalcConfirm: Boolean`
+  - `recalcDone: Boolean`
+- [ ] `SettingsViewModel` 新增方法：
+  - `showRecalcConfirm()`
+  - `dismissRecalcConfirm()`
+  - `recalculateReturns()` — 调用 `BackfillEngine.markDirtyAndBackfill(fromDate, accountId)`
+- [ ] 注入 `BackfillEngine`（如尚未注入）
+- [ ] 查找最早资产日期（从 Deposit + Holding + CashTransaction 等取 min date）
+
+### 26.4 一键重算收益 — UI
+
+- [ ] `SettingsScreen` 新增「一键重算收益」卡片项
+  - 位于「生成测试数据」和「清空数据」之间
+  - 标题：「一键重算收益」，副标题：「删除所有历史收益汇总并重新计算」
+- [ ] `SettingsScreen` 新增确认弹窗（AlertDialog）
+  - 标题「确认重算收益」，警告说明，取消/确认按钮
+  - 确认后调用 `viewModel.recalculateReturns()` + Toast 提示
+
+### 26.5 显示倍率 — ViewModel
+
+- [ ] `SettingsViewModel` 注入 `DisplaySettings`
+- [ ] `SettingsUiState` 新增字段 `displayMultiplier: BigDecimal = BigDecimal.ONE`
+- [ ] `SettingsViewModel` 新增方法 `setDisplayMultiplier(value: BigDecimal)`
+- [ ] `SettingsViewModel.init` 收集 `DisplaySettings.multiplierFlow`
+
+### 26.6 显示倍率 — UI
+
+- [ ] `SettingsScreen` 新增「显示倍率」卡片
+  - 位于「汇率基准」和「清空数据」之间
+  - 标题「显示倍率」，副标题说明文字
+  - 三个 `FilterChip` 或分段按钮：10%、50%、100%
+  - 当前选中项高亮（primary container 色）
+  - 点击后立即调用 `viewModel.setDisplayMultiplier()`
+
+### 26.7 各 ViewModel 应用倍率
+
+- [ ] `HomeViewModel` 收集 `DisplaySettings.multiplierFlow`，传入 `formatMoney`
+- [ ] `HoldingsViewModel` 收集 `DisplaySettings.multiplierFlow`，传入 `formatMoney`
+- [ ] `EarningsViewModel` 收集 `DisplaySettings.multiplierFlow`，传入 `formatMoney`
+
+### 26.8 编译验证 & 收尾
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 无编译错误和警告
+- [ ] 功能验证：重算收益后每日汇总数据正确
+- [ ] 功能验证：切换倍率后各页面金额变化正确
+- [ ] 功能验证：倍率设置为 50% 后重启 App 仍然生效

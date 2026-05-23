@@ -6,6 +6,7 @@ import com.financial.freedom.data.local.entity.DailyBreakdownItem
 import com.financial.freedom.data.local.entity.DailySummary
 import com.financial.freedom.data.repository.SummaryRepository
 import com.financial.freedom.domain.account.AccountManager
+import com.financial.freedom.domain.calculator.DataVerifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,23 +67,32 @@ data class EarningsUiState(
     val yearEarnings: List<YearEarning> = emptyList(),
     val selectedDayBreakdown: List<DailyBreakdownItem> = emptyList(),
     val showBreakdown: Boolean = false,
-    val weekExpandedIndex: Int? = null
+    val weekExpandedIndex: Int? = null,
+    val displayMultiplier: java.math.BigDecimal = java.math.BigDecimal.ONE
 )
 
 @HiltViewModel
 class EarningsViewModel @Inject constructor(
     private val summaryRepository: SummaryRepository,
-    private val accountManager: AccountManager
+    private val accountManager: AccountManager,
+    private val dataVerifier: DataVerifier,
+    private val displaySettings: com.financial.freedom.domain.settings.DisplaySettings
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EarningsUiState())
     val uiState: StateFlow<EarningsUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            displaySettings.multiplierFlow.collect { multiplier ->
+                _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
+            }
+        }
         viewModelScope.launch { loadDayView() }
     }
 
     fun selectView(index: Int) {
+        if (_uiState.value.selectedView == index) return
         _uiState.value = _uiState.value.copy(selectedView = index)
         viewModelScope.launch {
             when (index) {
@@ -91,6 +101,12 @@ class EarningsViewModel @Inject constructor(
                 2 -> loadMonthView()
                 3 -> loadYearView()
             }
+
+            // 加载视图时验证数据一致性
+            val accountId = accountManager.currentAccountId.value ?: return@launch
+            try {
+                dataVerifier.verifyAll(accountId)
+            } catch (_: Exception) {}
         }
     }
 

@@ -19,8 +19,14 @@ interface PriceSnapshotDao {
     @Query("SELECT * FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId ORDER BY date DESC LIMIT 1")
     suspend fun getLatest(holdingId: Long, accountId: Long): PriceSnapshot?
 
+    @Query("SELECT * FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId ORDER BY date DESC LIMIT 1")
+    fun observeLatest(holdingId: Long, accountId: Long): Flow<PriceSnapshot?>
+
     @Query("SELECT * FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId ORDER BY date DESC LIMIT 1 OFFSET 1")
     suspend fun getPrevious(holdingId: Long, accountId: Long): PriceSnapshot?
+
+    @Query("SELECT * FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId AND date < :beforeDate ORDER BY date DESC LIMIT 1")
+    suspend fun getLatestBefore(holdingId: Long, beforeDate: LocalDate, accountId: Long): PriceSnapshot?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(snapshot: PriceSnapshot)
@@ -33,4 +39,10 @@ interface PriceSnapshotDao {
 
     @Query("DELETE FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId")
     suspend fun deleteByHoldingId(holdingId: Long, accountId: Long)
+
+    @Query("SELECT * FROM price_snapshots WHERE accountId = :accountId ORDER BY date ASC")
+    suspend fun getAllList(accountId: Long): List<PriceSnapshot>
+
+    @Query("SELECT COUNT(*) FROM price_snapshots WHERE accountId = :accountId")
+    fun observeCount(accountId: Long): Flow<Int>
 }

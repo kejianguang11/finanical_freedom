@@ -2,11 +2,14 @@ package com.financial.freedom.domain.account
 
 import android.content.Context
 import com.financial.freedom.data.local.dao.AccountDao
+import com.financial.freedom.data.local.dao.CashTransactionDao
 import com.financial.freedom.data.local.dao.DailyBreakdownItemDao
 import com.financial.freedom.data.local.dao.DailySummaryDao
+import com.financial.freedom.data.local.dao.DebtDao
 import com.financial.freedom.data.local.dao.DepositDao
 import com.financial.freedom.data.local.dao.HoldingDao
 import com.financial.freedom.data.local.dao.PriceSnapshotDao
+import com.financial.freedom.data.local.dao.ReceivableDao
 import com.financial.freedom.data.local.dao.TransactionDao
 import com.financial.freedom.data.local.entity.Account
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +30,9 @@ class AccountManager @Inject constructor(
     private val transactionDao: TransactionDao,
     private val dailySummaryDao: DailySummaryDao,
     private val dailyBreakdownItemDao: DailyBreakdownItemDao,
+    private val cashTransactionDao: CashTransactionDao,
+    private val receivableDao: ReceivableDao,
+    private val debtDao: DebtDao,
     @ApplicationContext private val context: Context
 ) {
     private val prefs = context.getSharedPreferences("account_prefs", Context.MODE_PRIVATE)
@@ -92,15 +98,23 @@ class AccountManager @Inject constructor(
     /** 删除账号及其所有数据（级联删除） */
     suspend fun deleteAccount(accountId: Long) {
         val account = accountDao.getById(accountId) ?: return
+        val isGod = account.nickname == "god"
         depositDao.deleteByAccountId(accountId)
         holdingDao.deleteByAccountId(accountId)
         priceSnapshotDao.deleteByAccountId(accountId)
         transactionDao.deleteByAccountId(accountId)
         dailySummaryDao.deleteByAccountId(accountId)
         dailyBreakdownItemDao.deleteByAccountId(accountId)
+        cashTransactionDao.deleteByAccountId(accountId)
+        receivableDao.deleteByAccountId(accountId)
+        debtDao.deleteByAccountId(accountId)
         accountDao.delete(account)
         if (_currentAccountId.value == accountId) {
             logout()
+        }
+        // 删除 god 账号 = 完全重置，清理所有缓存和偏好
+        if (isGod) {
+            prefs.edit().clear().apply()
         }
     }
 

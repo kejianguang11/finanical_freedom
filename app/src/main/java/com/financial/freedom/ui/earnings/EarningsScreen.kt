@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -31,8 +33,10 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.financial.freedom.ui.components.CalendarDay
 import com.financial.freedom.ui.components.CalendarView
 import com.financial.freedom.ui.theme.FinancialColors
+import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -54,30 +59,38 @@ fun EarningsScreen(
     viewModel: EarningsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val pagerState = rememberPagerState(initialPage = state.selectedView, pageCount = { views.size })
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(pagerState.currentPage) {
+        viewModel.selectView(pagerState.currentPage)
+    }
 
     Column(Modifier.fillMaxSize()) {
         ScrollableTabRow(
-            selectedTabIndex = state.selectedView,
+            selectedTabIndex = pagerState.currentPage,
             modifier = Modifier.padding(horizontal = 16.dp),
             containerColor = MaterialTheme.colorScheme.background,
             edgePadding = 0.dp,
             divider = {},
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[state.selectedView]),
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
                     color = FinancialColors.gold
                 )
             }
         ) {
             views.forEachIndexed { index, title ->
                 Tab(
-                    selected = state.selectedView == index,
-                    onClick = { viewModel.selectView(index) },
+                    selected = pagerState.currentPage == index,
+                    onClick = {
+                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                    },
                     text = {
                         Text(
                             title,
-                            fontWeight = if (state.selectedView == index) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (state.selectedView == index) MaterialTheme.colorScheme.onSurface
+                            fontWeight = if (pagerState.currentPage == index) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (pagerState.currentPage == index) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -85,11 +98,16 @@ fun EarningsScreen(
             }
         }
 
-        when (state.selectedView) {
-            0 -> DayEarningsView(state, viewModel)
-            1 -> WeekEarningsView(state, viewModel)
-            2 -> MonthEarningsView(state)
-            3 -> YearEarningsView(state)
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> DayEarningsView(state, viewModel)
+                1 -> WeekEarningsView(state, viewModel)
+                2 -> MonthEarningsView(state)
+                3 -> YearEarningsView(state)
+            }
         }
     }
 
@@ -98,13 +116,13 @@ fun EarningsScreen(
             onDismissRequest = { viewModel.dismissBreakdown() },
             sheetState = rememberModalBottomSheetState()
         ) {
-            BreakdownSheet(state.selectedDayBreakdown)
+            BreakdownSheet(state.selectedDayBreakdown, state.displayMultiplier)
         }
     }
 }
 
 @Composable
-private fun BreakdownSheet(breakdown: List<com.financial.freedom.data.local.entity.DailyBreakdownItem>) {
+private fun BreakdownSheet(breakdown: List<com.financial.freedom.data.local.entity.DailyBreakdownItem>, multiplier: java.math.BigDecimal = java.math.BigDecimal.ONE) {
     Column(Modifier.padding(24.dp)) {
         Text("收益明细", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
@@ -123,7 +141,7 @@ private fun BreakdownSheet(breakdown: List<com.financial.freedom.data.local.enti
                     else -> item.type
                 }
                 val changeText = if (item.changeCNY >= BigDecimal.ZERO)
-                    "+${formatMoney(item.changeCNY)}" else formatMoney(item.changeCNY)
+                    "+${formatMoney(item.changeCNY, multiplier)}" else formatMoney(item.changeCNY, multiplier)
                 val color = if (item.changeCNY >= BigDecimal.ZERO)
                     FinancialColors.up else FinancialColors.down
                 Row(
@@ -141,7 +159,7 @@ private fun BreakdownSheet(breakdown: List<com.financial.freedom.data.local.enti
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("合计", fontWeight = FontWeight.Bold)
-                val totalText = if (total >= BigDecimal.ZERO) "+${formatMoney(total)}" else formatMoney(total)
+                val totalText = if (total >= BigDecimal.ZERO) "+${formatMoney(total, multiplier)}" else formatMoney(total, multiplier)
                 Text(totalText,
                     fontWeight = FontWeight.Bold,
                     color = if (total >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down)
@@ -240,7 +258,7 @@ private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewMode
                             )
                         }
                         val totalText = if (week.totalChange >= BigDecimal.ZERO)
-                            "+${formatMoney(week.totalChange)}" else formatMoney(week.totalChange)
+                            "+${formatMoney(week.totalChange, state.displayMultiplier)}" else formatMoney(week.totalChange, state.displayMultiplier)
                         Text(
                             totalText,
                             fontWeight = FontWeight.Bold,
@@ -317,7 +335,7 @@ private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewMode
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     val dayText = if (day.totalChange >= BigDecimal.ZERO)
-                                        "+${formatMoney(day.totalChange)}" else formatMoney(day.totalChange)
+                                        "+${formatMoney(day.totalChange, state.displayMultiplier)}" else formatMoney(day.totalChange, state.displayMultiplier)
                                     Text(
                                         dayText,
                                         style = MaterialTheme.typography.bodySmall,
@@ -392,7 +410,7 @@ private fun MonthEarningsView(state: EarningsUiState) {
                             )
                         }
                         val totalText = if (month.totalChange >= BigDecimal.ZERO)
-                            "+${formatMoney(month.totalChange)}" else formatMoney(month.totalChange)
+                            "+${formatMoney(month.totalChange, state.displayMultiplier)}" else formatMoney(month.totalChange, state.displayMultiplier)
                         Text(
                             totalText,
                             fontWeight = FontWeight.Bold,
@@ -451,7 +469,7 @@ private fun YearEarningsView(state: EarningsUiState) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(4.dp))
                             val totalText = if (year.totalChange >= BigDecimal.ZERO)
-                                "+${formatMoney(year.totalChange)}" else formatMoney(year.totalChange)
+                                "+${formatMoney(year.totalChange, state.displayMultiplier)}" else formatMoney(year.totalChange, state.displayMultiplier)
                             Text(totalText, fontWeight = FontWeight.Bold,
                                 color = if (isUp) FinancialColors.up else FinancialColors.down)
                         }
@@ -480,12 +498,6 @@ private fun YearEarningsView(state: EarningsUiState) {
     }
 }
 
-fun formatMoney(value: BigDecimal): String {
-    val abs = value.abs().setScale(2, RoundingMode.HALF_UP)
-    val intPart = abs.toBigInteger().toString()
-    val formatted = intPart.reversed().chunked(3).joinToString(",").reversed()
-    val decimal = abs.subtract(BigDecimal(abs.toBigInteger())).toPlainString()
-        .removePrefix("0").take(4)
-    val fullValue = if (decimal.isNotEmpty() && decimal != ".00") "$formatted$decimal" else formatted
-    return if (value < BigDecimal.ZERO) "-$fullValue" else fullValue
+fun formatMoney(value: BigDecimal, multiplier: BigDecimal = BigDecimal.ONE): String {
+    return com.financial.freedom.ui.common.FormatUtils.formatMoney(value, multiplier)
 }

@@ -26,6 +26,9 @@ interface DepositDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(deposit: Deposit): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(deposits: List<Deposit>)
+
     @Update
     suspend fun update(deposit: Deposit)
 
@@ -34,4 +37,16 @@ interface DepositDao {
 
     @Query("DELETE FROM deposits WHERE accountId = :accountId")
     suspend fun deleteByAccountId(accountId: Long)
+
+    @Query("SELECT * FROM deposits WHERE accountId = :accountId AND status = 'matured' ORDER BY maturityDate DESC")
+    suspend fun getMaturedList(accountId: Long): List<Deposit>
+
+    @Query("SELECT * FROM deposits WHERE accountId = :accountId AND status = 'settled' ORDER BY maturityDate DESC")
+    suspend fun getSettledList(accountId: Long): List<Deposit>
+
+    @Query("SELECT * FROM deposits WHERE accountId = :accountId AND status IN ('matured', 'settled') ORDER BY maturityDate DESC")
+    suspend fun getInactiveList(accountId: Long): List<Deposit>
+
+    @Query("SELECT * FROM deposits WHERE accountId = :accountId AND status IN ('matured', 'settled') ORDER BY maturityDate DESC")
+    fun getInactiveFlow(accountId: Long): Flow<List<Deposit>>
 }

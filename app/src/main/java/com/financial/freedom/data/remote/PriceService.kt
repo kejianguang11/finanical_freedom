@@ -42,6 +42,7 @@ class PriceService @Inject constructor(
     suspend fun searchAll(query: String): List<SearchResult> =
         aStockProvider.search(query) +
             usStockProvider.search(query) +
+            hkStockProvider.search(query) +
             cnFundProvider.search(query) +
             goldProvider.search(query)
 

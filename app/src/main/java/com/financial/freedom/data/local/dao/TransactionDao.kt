@@ -16,9 +16,15 @@ interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: Transaction): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(transactions: List<Transaction>)
+
     @Delete
     suspend fun delete(transaction: Transaction)
 
     @Query("DELETE FROM transactions WHERE accountId = :accountId")
     suspend fun deleteByAccountId(accountId: Long)
+
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId ORDER BY date ASC")
+    suspend fun getAllList(accountId: Long): List<Transaction>
 }

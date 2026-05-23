@@ -17,7 +17,8 @@ import javax.inject.Singleton
 data class ImportPreview(
     val fileName: String,
     val totalRows: Int,
-    val sampleRows: List<String>
+    val sampleRows: List<String>,
+    val isEncrypted: Boolean = false
 )
 
 @Singleton
@@ -27,21 +28,42 @@ class CsvImporter @Inject constructor(
     private val holdingDao: HoldingDao
 ) {
     fun preview(uri: Uri): ImportPreview? {
-        val reader = context.contentResolver.openInputStream(uri)?.let { BufferedReader(InputStreamReader(it)) } ?: return null
-        val lines = reader.use { it.readLines() }.filter { it.isNotBlank() }
-        if (lines.isEmpty()) return null
+        val rawBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+        val isEnc = CsvEncryption.isEncrypted(rawBytes)
+        val content = if (isEnc) {
+            "（加密文件，需要 PIN 解密）"
+        } else {
+            String(rawBytes)
+        }
+        val lines = content.split("\n").filter { it.isNotBlank() }
+        if (lines.isEmpty() && !isEnc) return null
 
         val fileName = uri.lastPathSegment ?: "unknown.csv"
-        val dataRows = lines.drop(1).filter { it.isNotBlank() }
-        return ImportPreview(
-            fileName = fileName,
-            totalRows = dataRows.size,
-            sampleRows = dataRows.take(3).map { it.take(120) }
-        )
+        return if (isEnc) {
+            ImportPreview(fileName = fileName, totalRows = -1, sampleRows = emptyList(), isEncrypted = true)
+        } else {
+            val dataRows = lines.drop(1).filter { it.isNotBlank() }
+            ImportPreview(
+                fileName = fileName,
+                totalRows = dataRows.size,
+                sampleRows = dataRows.take(3).map { it.take(120) },
+                isEncrypted = false
+            )
+        }
     }
 
-    suspend fun importDeposits(uri: Uri, accountId: Long): Int {
-        val lines = readLines(uri) ?: return 0
+    suspend fun importAll(uri: Uri, accountId: Long, pin: String? = null): Int {
+        val rawBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return 0
+        val isEnc = CsvEncryption.isEncrypted(rawBytes)
+        val content = if (isEnc) {
+            if (pin == null) return 0
+            String(CsvEncryption.decrypt(rawBytes, pin))
+        } else {
+            String(rawBytes)
+        }
+
+        val lines = content.split("\n").filter { it.isNotBlank() }
+        if (lines.isEmpty()) return 0
         val header = lines.first().lowercase().split(",").map { it.trim() }
         var count = 0
 
@@ -49,58 +71,62 @@ class CsvImporter @Inject constructor(
             if (line.isBlank()) continue
             val values = parseCsvLine(line)
             val map = header.zip(values).toMap()
+            val type = map["type"]?.uppercase() ?: continue
 
-            depositDao.insert(
-                Deposit(
-                    accountId = accountId,
-                    name = map["name"] ?: "",
-                    bank = map["bank"] ?: "",
-                    currency = map["currency"] ?: "CNY",
-                    principal = map["principal"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
-                    interestRate = map["interest_rate"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
-                    startDate = map["start_date"]?.let { LocalDate.parse(it) } ?: LocalDate.fromEpochDays(0),
-                    maturityDate = map["maturity_date"]?.let { LocalDate.parse(it) } ?: LocalDate.fromEpochDays(0),
-                    status = map["status"] ?: "active",
-                    note = map["note"] ?: ""
-                )
-            )
+            when (type) {
+                "DEPOSIT" -> {
+                    depositDao.insert(
+                        Deposit(
+                            accountId = accountId,
+                            name = map["name"] ?: "",
+                            bank = map["bank"] ?: "",
+                            currency = map["currency"] ?: "CNY",
+                            principal = map["principal"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
+                            interestRate = map["interest_rate"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
+                            startDate = map["start_date"]?.let { LocalDate.parse(it) } ?: LocalDate.fromEpochDays(0),
+                            maturityDate = map["end_date"]?.let { LocalDate.parse(it) } ?: LocalDate.fromEpochDays(0),
+                            status = "active",
+                            note = map["note"] ?: ""
+                        )
+                    )
+                }
+                "GOLD" -> {
+                    holdingDao.insert(
+                        Holding(
+                            accountId = accountId,
+                            type = "GOLD",
+                            symbol = "XAU",
+                            name = "黄金",
+                            market = map["market"] ?: "",
+                            currency = map["currency"] ?: "CNY",
+                            quantity = map["quantity"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
+                            costPrice = map["cost_price"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
+                            costDate = map["start_date"]?.let { LocalDate.parse(it) } ?: LocalDate.fromEpochDays(0),
+                            note = map["note"] ?: ""
+                        )
+                    )
+                }
+                else -> {
+                    holdingDao.insert(
+                        Holding(
+                            accountId = accountId,
+                            type = type,
+                            symbol = map["symbol"] ?: "",
+                            name = map["name"] ?: "",
+                            market = map["market"] ?: "",
+                            currency = map["currency"] ?: "CNY",
+                            quantity = map["quantity"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
+                            costPrice = map["cost_price"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
+                            costDate = map["start_date"]?.let { LocalDate.parse(it) } ?: LocalDate.fromEpochDays(0),
+                            note = map["note"] ?: ""
+                        )
+                    )
+                }
+            }
             count++
         }
         return count
     }
-
-    suspend fun importHoldings(uri: Uri, accountId: Long): Int {
-        val lines = readLines(uri) ?: return 0
-        val header = lines.first().lowercase().split(",").map { it.trim() }
-        var count = 0
-
-        for (line in lines.drop(1)) {
-            if (line.isBlank()) continue
-            val values = parseCsvLine(line)
-            val map = header.zip(values).toMap()
-
-            holdingDao.insert(
-                Holding(
-                    accountId = accountId,
-                    type = map["type"] ?: "STOCK",
-                    symbol = map["symbol"] ?: "",
-                    name = map["name"] ?: "",
-                    market = map["market"] ?: "",
-                    currency = map["currency"] ?: "CNY",
-                    quantity = map["quantity"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
-                    costPrice = map["cost_price"]?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
-                    costDate = map["cost_date"]?.let { LocalDate.parse(it) } ?: LocalDate.fromEpochDays(0),
-                    note = map["note"] ?: ""
-                )
-            )
-            count++
-        }
-        return count
-    }
-
-    private fun readLines(uri: Uri): List<String>? =
-        context.contentResolver.openInputStream(uri)?.let { BufferedReader(InputStreamReader(it)) }
-            .use { it?.readLines() }
 
     private fun parseCsvLine(line: String): List<String> {
         val result = mutableListOf<String>()

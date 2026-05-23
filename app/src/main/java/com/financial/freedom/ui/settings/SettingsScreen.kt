@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,12 +21,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.financial.freedom.ui.theme.FinancialColors
 
@@ -52,20 +58,13 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var exportType by rememberSaveable { mutableStateOf("") }
     var importUri by rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
 
     // 保存文件 launcher
     val saveLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
-        uri?.let {
-            when (exportType) {
-                "deposits" -> viewModel.exportDeposits(it)
-                "holdings" -> viewModel.exportHoldings(it)
-            }
-            Toast.makeText(context, "导出完成", Toast.LENGTH_SHORT).show()
-        }
+        uri?.let { viewModel.showExportPinDialog(it) }
     }
 
     // 打开文件 launcher
@@ -75,6 +74,36 @@ fun SettingsScreen(
         uri?.let {
             importUri = it
             viewModel.previewImport(it)
+        }
+    }
+
+    // 备份保存 launcher
+    val backupSaveLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let { viewModel.backup(it) }
+    }
+
+    // 恢复文件选择 launcher
+    val restoreOpenLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.previewRestore(it) }
+    }
+
+    // 备份完成 toast
+    if (state.backupDone) {
+        LaunchedEffect(Unit) {
+            Toast.makeText(context, "备份完成", Toast.LENGTH_SHORT).show()
+            viewModel.dismissBackupDone()
+        }
+    }
+
+    // 恢复完成 toast
+    if (state.restoreDone) {
+        LaunchedEffect(Unit) {
+            Toast.makeText(context, "恢复完成，数据已刷新", Toast.LENGTH_SHORT).show()
+            viewModel.dismissRestoreDone()
         }
     }
 
@@ -91,6 +120,83 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissClearConfirm() }) { Text("取消") }
+            }
+        )
+    }
+
+    // 重算收益确认对话框
+    if (state.showRecalcConfirm) {
+        AlertDialog(
+            onDismissRequest = { if (!state.isRecalculating) viewModel.dismissRecalcConfirm() },
+            title = { Text(if (state.isRecalculating) "正在重算…" else "确认重算收益") },
+            text = {
+                if (state.isRecalculating) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        CircularProgressIndicator(modifier = Modifier.padding(16.dp), color = FinancialColors.up)
+                        Text("正在从最早资产日期重新计算所有每日收益…", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Text("将删除所有每日收益汇总数据，并从最早资产日期重新计算。\n\n此操作不会影响存款、持仓等原始数据，但无法撤销。")
+                }
+            },
+            confirmButton = {
+                if (!state.isRecalculating) {
+                    TextButton(onClick = { viewModel.recalculateReturns() }) {
+                        Text("确认重算", color = FinancialColors.up)
+                    }
+                }
+            },
+            dismissButton = {
+                if (!state.isRecalculating) {
+                    TextButton(onClick = { viewModel.dismissRecalcConfirm() }) { Text("取消") }
+                }
+            }
+        )
+    }
+
+    // Toast 提示
+    if (state.recalcDone) {
+        LaunchedEffect(Unit) {
+            Toast.makeText(context, "收益重算完成", Toast.LENGTH_SHORT).show()
+            viewModel.dismissRecalcDone()
+        }
+    }
+    if (state.testDataDone) {
+        LaunchedEffect(Unit) {
+            Toast.makeText(context, "测试数据已生成", Toast.LENGTH_SHORT).show()
+            viewModel.dismissTestDataDone()
+        }
+    }
+
+    // 恢复确认对话框
+    if (state.showRestoreConfirm && state.restorePreview != null) {
+        val preview = state.restorePreview!!
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissRestoreConfirm() },
+            title = { Text("确认恢复数据") },
+            text = {
+                Column {
+                    Text("将用备份文件覆盖当前账号所有数据，此操作不可撤销。")
+                    Spacer(Modifier.height(12.dp))
+                    Text("备份日期：${preview.exportedAt.take(16)}",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("存款 ${preview.deposits.size} 笔 · 持仓 ${preview.holdings.size} 只",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("价格快照 ${preview.priceSnapshots.size} 条 · 交易 ${preview.transactions.size} 笔",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("日汇总 ${preview.dailySummaries.size} 天 · 现金流水 ${preview.cashTransactions.size} 条",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("汇率 ${preview.exchangeRates.size} 条",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmRestore() }) {
+                    Text("确认恢复", color = FinancialColors.up)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissRestoreConfirm() }) { Text("取消") }
             }
         )
     }
@@ -114,19 +220,12 @@ fun SettingsScreen(
                 TextButton(onClick = {
                     val uri = importUri
                     if (uri != null) {
-                        val fileName = preview.fileName.lowercase()
-                        when {
-                            fileName.contains("deposit") -> viewModel.confirmImportDeposits(uri)
-                            fileName.contains("holding") -> viewModel.confirmImportHoldings(uri)
-                            else -> {
-                                val firstRow = preview.sampleRows.firstOrNull()?.lowercase() ?: ""
-                                if (firstRow.contains("principal") || firstRow.contains("interest_rate"))
-                                    viewModel.confirmImportDeposits(uri)
-                                else
-                                    viewModel.confirmImportHoldings(uri)
-                            }
+                        if (preview.isEncrypted) {
+                            viewModel.showImportPinDialog(uri)
+                        } else {
+                            viewModel.confirmImportAll(uri)
+                            Toast.makeText(context, "导入完成", Toast.LENGTH_SHORT).show()
                         }
-                        Toast.makeText(context, "导入完成", Toast.LENGTH_SHORT).show()
                         importUri = null
                     }
                 }) { Text("确认导入") }
@@ -385,6 +484,75 @@ fun SettingsScreen(
             }
         }
 
+        // 重算收益
+        ElevatedCard(
+            Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { viewModel.showRecalcConfirm() },
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("一键重算收益", style = MaterialTheme.typography.bodyLarge)
+                    Text("删除所有历史收益汇总并重新计算", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── 一键备份与恢复 ──
+        Text("数据备份", style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedCard(
+                modifier = Modifier.weight(1f).clickable {
+                    backupSaveLauncher.launch("furaoge_backup_${state.currentAccountNickname}.json")
+                }
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Icon(
+                        Icons.Default.SaveAlt,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("一键备份",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold)
+                    Text("导出完整数据快照",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            OutlinedCard(
+                modifier = Modifier.weight(1f).clickable {
+                    restoreOpenLauncher.launch(arrayOf("application/json", "*/*"))
+                }
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Icon(
+                        Icons.Default.Restore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("一键恢复",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold)
+                    Text("从备份文件恢复所有数据",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
         Spacer(Modifier.height(16.dp))
 
         // 数据导出
@@ -395,29 +563,97 @@ fun SettingsScreen(
         ) {
             Column(Modifier.padding(16.dp)) {
                 Text("数据导出", style = MaterialTheme.typography.bodyLarge)
+                Text("导出全部资产为 assets.csv", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
-
-                Text("存款", style = MaterialTheme.typography.labelMedium)
                 Row {
                     TextButton(onClick = {
-                        exportType = "deposits"
-                        saveLauncher.launch("deposits.csv")
+                        saveLauncher.launch("assets.csv")
                     }) { Text("保存文件") }
-                    TextButton(onClick = { viewModel.shareDeposits() }) { Text("分享") }
-                }
-
-                Text("持仓", style = MaterialTheme.typography.labelMedium)
-                Row {
-                    TextButton(onClick = {
-                        exportType = "holdings"
-                        saveLauncher.launch("holdings.csv")
-                    }) { Text("保存文件") }
-                    TextButton(onClick = { viewModel.shareHoldings() }) { Text("分享") }
+                    TextButton(onClick = { viewModel.shareAll() }) { Text("分享") }
                 }
             }
         }
 
-        // 分享 intent 处理
+        // 导出 PIN 对话框
+    if (state.showExportPinDialog) {
+        var exportPin by rememberSaveable { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissExportPinDialog() },
+            title = { Text("设置加密密码") },
+            text = {
+                Column {
+                    Text("输入 4 位 PIN 对导出文件加密，留空则不加密。")
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = exportPin,
+                        onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) exportPin = it },
+                        label = { Text("4 位 PIN (留空=不加密)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val uri = state.pendingExportUri
+                    if (uri != null) {
+                        viewModel.exportAll(uri, exportPin.ifBlank { null })
+                        Toast.makeText(context, "导出完成", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.dismissExportPinDialog()
+                    }
+                }) { Text("导出") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissExportPinDialog() }) { Text("取消") }
+            }
+        )
+    }
+
+    // 导入 PIN 对话框
+    if (state.showImportPinDialog) {
+        var importPin by rememberSaveable { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissImportPinDialog() },
+            title = { Text("输入解密密码") },
+            text = {
+                Column {
+                    Text("此文件已加密，请输入 PIN 解密。")
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = importPin,
+                        onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) importPin = it },
+                        label = { Text("4 位 PIN") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (importPin.length == 4) {
+                        val uri = state.pendingImportUri
+                        if (uri != null) {
+                            viewModel.confirmImportAll(uri, importPin)
+                            Toast.makeText(context, "导入完成", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(context, "请输入 4 位 PIN", Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text("导入") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissImportPinDialog() }) { Text("取消") }
+            }
+        )
+    }
+
+    // 分享 intent 处理
         state.shareIntent?.let { intent ->
             LaunchedEffect(intent) {
                 context.startActivity(Intent.createChooser(intent, "分享 CSV"))
@@ -451,6 +687,45 @@ fun SettingsScreen(
                     Text("汇率基准", style = MaterialTheme.typography.bodyLarge)
                     Text(state.rates, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        // 显示倍率
+        ElevatedCard(
+            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("显示倍率", style = MaterialTheme.typography.bodyLarge)
+                Text("所有页面的金额显示将乘以所选倍率", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (ratio in listOf(
+                        java.math.BigDecimal("0.1") to "10%",
+                        java.math.BigDecimal("0.5") to "50%",
+                        java.math.BigDecimal.ONE to "100%"
+                    )) {
+                        val isSelected = state.displayMultiplier == ratio.first
+                        OutlinedCard(
+                            modifier = Modifier.clickable { viewModel.setDisplayMultiplier(ratio.first) },
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Text(
+                                text = ratio.second,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
                 }
             }
         }

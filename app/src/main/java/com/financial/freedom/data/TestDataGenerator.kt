@@ -1,14 +1,20 @@
 package com.financial.freedom.data
 
+import com.financial.freedom.data.local.dao.CashTransactionDao
+import com.financial.freedom.data.local.dao.DebtDao
 import com.financial.freedom.data.local.dao.DepositDao
 import com.financial.freedom.data.local.dao.ExchangeRateDao
 import com.financial.freedom.data.local.dao.HoldingDao
 import com.financial.freedom.data.local.dao.PriceSnapshotDao
+import com.financial.freedom.data.local.dao.ReceivableDao
 import com.financial.freedom.data.local.dao.TransactionDao
+import com.financial.freedom.data.local.entity.CashTransaction
+import com.financial.freedom.data.local.entity.Debt
 import com.financial.freedom.data.local.entity.Deposit
 import com.financial.freedom.data.local.entity.ExchangeRate
 import com.financial.freedom.data.local.entity.Holding
 import com.financial.freedom.data.local.entity.PriceSnapshot
+import com.financial.freedom.data.local.entity.Receivable
 import com.financial.freedom.data.local.entity.Transaction
 import com.financial.freedom.domain.account.AccountManager
 import com.financial.freedom.domain.calculator.BackfillEngine
@@ -33,6 +39,9 @@ class TestDataGenerator @Inject constructor(
     private val priceSnapshotDao: PriceSnapshotDao,
     private val transactionDao: TransactionDao,
     private val exchangeRateDao: ExchangeRateDao,
+    private val cashTransactionDao: CashTransactionDao,
+    private val receivableDao: ReceivableDao,
+    private val debtDao: DebtDao,
     private val backfillEngine: BackfillEngine,
     private val accountManager: AccountManager
 ) {
@@ -42,6 +51,9 @@ class TestDataGenerator @Inject constructor(
             seedExchangeRates()
             generateDeposits(accountId)
             generateHoldings(accountId)
+            generateCashTransactions(accountId)
+            generateReceivables(accountId)
+            generateDebts(accountId)
 
             // 找到最早的资产日期，从那里开始标记脏数据并重新回填
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
@@ -221,6 +233,55 @@ class TestDataGenerator @Inject constructor(
         generatePriceSnapshots(tencentId, accountId, tencentCostPrice, tencentCostDate, today, 0.0002, 0.018)
         generatePriceSnapshots(fundId, accountId, fundCostPrice, fundCostDate, today, 0.0001, 0.008)
         generatePriceSnapshots(goldId, accountId, goldCostPrice, goldCostDate, today, 0.0002, 0.010)
+    }
+
+    private suspend fun generateCashTransactions(accountId: Long) {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val existing = cashTransactionDao.getAllList(accountId)
+        if (existing.isNotEmpty()) return
+
+        cashTransactionDao.insert(
+            CashTransaction(accountId = accountId, date = today.minus(30, DateTimeUnit.DAY),
+                amount = BigDecimal("50000"), type = "MANUAL", note = "工资入账")
+        )
+        cashTransactionDao.insert(
+            CashTransaction(accountId = accountId, date = today.minus(15, DateTimeUnit.DAY),
+                amount = BigDecimal("-8000"), type = "MANUAL", note = "日常开销")
+        )
+    }
+
+    private suspend fun generateReceivables(accountId: Long) {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val existing = receivableDao.getAllList(accountId)
+        if (existing.isNotEmpty()) return
+
+        receivableDao.insert(
+            Receivable(accountId = accountId, name = "张三", amount = BigDecimal("20000"),
+                date = today.minus(60, DateTimeUnit.DAY),
+                expectedDate = today.plus(30, DateTimeUnit.DAY), note = "借款")
+        )
+        receivableDao.insert(
+            Receivable(accountId = accountId, name = "王五", amount = BigDecimal("10000"),
+                date = today.minus(10, DateTimeUnit.DAY),
+                expectedDate = null, note = "垫付差旅费")
+        )
+    }
+
+    private suspend fun generateDebts(accountId: Long) {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val existing = debtDao.getAllList(accountId)
+        if (existing.isNotEmpty()) return
+
+        debtDao.insert(
+            Debt(accountId = accountId, name = "招行信用卡", amount = BigDecimal("35000"),
+                date = today.minus(45, DateTimeUnit.DAY),
+                interestRate = BigDecimal("0.0005"), note = "本月账单")
+        )
+        debtDao.insert(
+            Debt(accountId = accountId, name = "李四", amount = BigDecimal("25000"),
+                date = today.minus(20, DateTimeUnit.DAY),
+                interestRate = null, note = "装修借款")
+        )
     }
 
     private suspend fun generatePriceSnapshots(

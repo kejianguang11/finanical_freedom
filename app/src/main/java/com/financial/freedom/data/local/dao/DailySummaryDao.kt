@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.financial.freedom.data.local.entity.DailySummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
+import java.math.BigDecimal
 
 @Dao
 interface DailySummaryDao {
@@ -22,6 +23,9 @@ interface DailySummaryDao {
     @Query("SELECT MAX(date) FROM daily_summaries WHERE accountId = :accountId")
     suspend fun getLatestDate(accountId: Long): LocalDate?
 
+    @Query("SELECT COUNT(*) FROM daily_summaries WHERE accountId = :accountId")
+    suspend fun countByAccountId(accountId: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(summary: DailySummary)
 
@@ -33,4 +37,7 @@ interface DailySummaryDao {
 
     @Query("DELETE FROM daily_summaries WHERE accountId = :accountId AND date >= :fromDate")
     suspend fun deleteFromDate(fromDate: LocalDate, accountId: Long)
+
+    @Query("SELECT COALESCE(SUM(dayChange), 0) FROM daily_summaries WHERE accountId = :accountId AND date > :afterDate AND date <= :asOfDate")
+    suspend fun getCumulativeDayChange(accountId: Long, afterDate: LocalDate, asOfDate: LocalDate): BigDecimal
 }
