@@ -90,7 +90,7 @@ fun CreditScreen(viewModel: CreditViewModel = hiltViewModel()) {
             }
         } else {
             items(state.receivables, key = { "rec_${it.id}" }) { r ->
-                ReceivableCard(r, onEdit = { viewModel.showEditReceivable(r) },
+                ReceivableCard(r, state.displayMultiplier, onEdit = { viewModel.showEditReceivable(r) },
                     onDelete = { viewModel.deleteReceivable(r) })
                 Spacer(Modifier.height(8.dp))
             }
@@ -139,7 +139,7 @@ fun CreditScreen(viewModel: CreditViewModel = hiltViewModel()) {
             }
         } else {
             items(state.debts, key = { "debt_${it.id}" }) { d ->
-                DebtCard(d, onEdit = { viewModel.showEditDebt(d) },
+                DebtCard(d, state.displayMultiplier, onEdit = { viewModel.showEditDebt(d) },
                     onDelete = { viewModel.deleteDebt(d) })
                 Spacer(Modifier.height(8.dp))
             }
@@ -221,7 +221,7 @@ fun CreditScreen(viewModel: CreditViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun ReceivableCard(r: Receivable, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun ReceivableCard(r: Receivable, multiplier: BigDecimal, onEdit: () -> Unit, onDelete: () -> Unit) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onEdit,
@@ -247,7 +247,8 @@ private fun ReceivableCard(r: Receivable, onEdit: () -> Unit, onDelete: () -> Un
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("¥${r.amount}", style = MaterialTheme.typography.titleMedium,
+                Text(com.financial.freedom.ui.common.FormatUtils.formatAllocationValue(r.amount, multiplier),
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold, color = FinancialColors.up)
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = onDelete) {
@@ -259,7 +260,7 @@ private fun ReceivableCard(r: Receivable, onEdit: () -> Unit, onDelete: () -> Un
 }
 
 @Composable
-private fun DebtCard(d: Debt, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun DebtCard(d: Debt, multiplier: BigDecimal, onEdit: () -> Unit, onDelete: () -> Unit) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onEdit,
@@ -286,7 +287,8 @@ private fun DebtCard(d: Debt, onEdit: () -> Unit, onDelete: () -> Unit) {
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("¥${d.amount}", style = MaterialTheme.typography.titleMedium,
+                Text(com.financial.freedom.ui.common.FormatUtils.formatAllocationValue(d.amount, multiplier),
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold, color = FinancialColors.down)
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = onDelete) {

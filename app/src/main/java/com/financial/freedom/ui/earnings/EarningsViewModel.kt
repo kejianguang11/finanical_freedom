@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
@@ -101,6 +102,17 @@ class EarningsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch { loadDayView() }
+        // 倍率变化时刷新当前视图的展示
+        viewModelScope.launch {
+            displaySettings.multiplierFlow.drop(1).collect {
+                when (_uiState.value.selectedView) {
+                    0 -> loadDayView()
+                    1 -> loadWeekView()
+                    2 -> loadMonthView()
+                    3 -> loadYearView()
+                }
+            }
+        }
     }
 
     fun selectView(index: Int) {

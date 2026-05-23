@@ -7,18 +7,19 @@ import com.financial.freedom.data.local.entity.Receivable
 import com.financial.freedom.data.repository.DebtRepository
 import com.financial.freedom.data.repository.ReceivableRepository
 import com.financial.freedom.domain.account.AccountManager
+import com.financial.freedom.domain.settings.DisplaySettings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import java.math.BigDecimal
-import java.math.RoundingMode
 import javax.inject.Inject
 
 data class CreditUiState(
@@ -32,20 +33,27 @@ data class CreditUiState(
     val editingReceivable: Receivable? = null,
     val showAddDebt: Boolean = false,
     val showEditDebt: Boolean = false,
-    val editingDebt: Debt? = null
+    val editingDebt: Debt? = null,
+    val displayMultiplier: BigDecimal = BigDecimal.ONE
 )
 
 @HiltViewModel
 class CreditViewModel @Inject constructor(
     private val receivableRepository: ReceivableRepository,
     private val debtRepository: DebtRepository,
-    private val accountManager: AccountManager
+    private val accountManager: AccountManager,
+    private val displaySettings: DisplaySettings
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreditUiState())
     val uiState: StateFlow<CreditUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            displaySettings.multiplierFlow.collect { multiplier ->
+                _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
+            }
+        }
         val accountId = accountManager.currentAccountId.value
         if (accountId != null) {
             viewModelScope.launch {
@@ -56,14 +64,28 @@ class CreditViewModel @Inject constructor(
                     val rTotal = receivables.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) }
                     val dTotal = debts.fold(BigDecimal.ZERO) { acc, d -> acc.add(d.amount) }
                     val net = rTotal.subtract(dTotal)
+                    val m = _uiState.value.displayMultiplier
                     _uiState.value.copy(
                         receivables = receivables,
                         debts = debts,
-                        receivablesTotal = formatMoney(rTotal),
-                        debtsTotal = formatMoney(dTotal),
-                        netAmount = formatMoney(net.abs())
+                        receivablesTotal = formatMoney(rTotal, m),
+                        debtsTotal = formatMoney(dTotal, m),
+                        netAmount = formatMoney(net.abs(), m)
                     )
                 }.collect { _uiState.value = it }
+            }
+            // 倍率变化时重新格式化
+            viewModelScope.launch {
+                displaySettings.multiplierFlow.drop(1).collect { m ->
+                    val rTotal = receivableRepository.getTotal(accountId)
+                    val dTotal = debtRepository.getTotal(accountId)
+                    val net = rTotal.subtract(dTotal)
+                    _uiState.value = _uiState.value.copy(
+                        receivablesTotal = formatMoney(rTotal, m),
+                        debtsTotal = formatMoney(dTotal, m),
+                        netAmount = formatMoney(net.abs(), m)
+                    )
+                }
             }
         }
     }
@@ -74,10 +96,11 @@ class CreditViewModel @Inject constructor(
             val rTotal = receivableRepository.getTotal(accountId)
             val dTotal = debtRepository.getTotal(accountId)
             val net = rTotal.subtract(dTotal)
+            val m = _uiState.value.displayMultiplier
             _uiState.value = _uiState.value.copy(
-                receivablesTotal = formatMoney(rTotal),
-                debtsTotal = formatMoney(dTotal),
-                netAmount = formatMoney(net.abs())
+                receivablesTotal = formatMoney(rTotal, m),
+                debtsTotal = formatMoney(dTotal, m),
+                netAmount = formatMoney(net.abs(), m)
             )
         }
     }
@@ -154,13 +177,7 @@ class CreditViewModel @Inject constructor(
         viewModelScope.launch { debtRepository.delete(d) }
     }
 
-    private fun formatMoney(value: BigDecimal): String {
-        val rounded = value.setScale(2, RoundingMode.HALF_UP)
-        val abs = rounded.abs()
-        val intPart = abs.toBigInteger().toString()
-        val formatted = intPart.reversed().chunked(3).joinToString(",").reversed()
-        val decimal = abs.subtract(BigDecimal(abs.toBigInteger())).toPlainString().removePrefix("0")
-        val full = if (decimal.isNotEmpty() && decimal != ".00") "$formatted$decimal" else formatted
-        return if (rounded < BigDecimal.ZERO) "-$full" else full
+    private fun formatMoney(value: BigDecimal, multiplier: BigDecimal): String {
+        return com.financial.freedom.ui.common.FormatUtils.formatMoney(value, multiplier)
     }
 }

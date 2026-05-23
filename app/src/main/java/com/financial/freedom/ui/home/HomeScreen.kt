@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -229,7 +230,7 @@ fun HomeScreen(
                     todayChange = null,
                     accentColor = FinancialColors.cash,
                     modifier = Modifier.weight(1f),
-                    onClick = { onScrollToPage(6) }
+                    onClick = { onScrollToPage(5) }
                 )
                 CompactAssetCard(
                     label = "信用",
@@ -237,7 +238,7 @@ fun HomeScreen(
                     todayChange = null,
                     accentColor = FinancialColors.receivable,
                     modifier = Modifier.weight(1f),
-                    onClick = { onScrollToPage(7) }
+                    onClick = { onScrollToPage(6) }
                 )
             }
 
@@ -248,7 +249,8 @@ fun HomeScreen(
                 trendData = state.trendData,
                 investmentBreakdown = state.investmentBreakdownMap,
                 selectedRange = state.selectedTrendRange,
-                onSelectRange = { viewModel.selectTrendRange(it) }
+                onSelectRange = { viewModel.selectTrendRange(it) },
+                multiplier = state.displayMultiplier
             )
         }
     }
@@ -369,11 +371,13 @@ private fun CompactAssetCard(
                     .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
                     .background(accentColor)
             )
-            // Content
+            // Content — min height ensures cash/credit cards match investment/deposit
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .heightIn(min = 48.dp),
+                verticalArrangement = Arrangement.Center
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -596,7 +600,8 @@ private fun NetWorthTrendCard(
     trendData: List<DailySummary>,
     investmentBreakdown: Map<LocalDate, BigDecimal>,
     selectedRange: TrendRange,
-    onSelectRange: (TrendRange) -> Unit
+    onSelectRange: (TrendRange) -> Unit,
+    multiplier: BigDecimal = BigDecimal.ONE
 ) {
     if (trendData.isEmpty()) return
 
@@ -725,7 +730,8 @@ private fun NetWorthTrendCard(
 
             TrendChart(
                 data = if (showInvestment) investmentData else netWorthData,
-                modifier = Modifier.fillMaxWidth().height(220.dp)
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+                multiplier = multiplier
             )
         }
     }

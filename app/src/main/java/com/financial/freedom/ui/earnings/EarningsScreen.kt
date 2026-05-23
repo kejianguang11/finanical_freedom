@@ -100,15 +100,17 @@ fun EarningsScreen(
             }
         }
 
+        // 在 pager 内部重新收集 state，确保 HorizontalPager 的页面缓存能感知倍率变化
+        val pageState by viewModel.uiState.collectAsState()
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
-                0 -> DayEarningsView(state, viewModel)
-                1 -> WeekEarningsView(state, viewModel)
-                2 -> MonthEarningsView(state, viewModel)
-                3 -> YearEarningsView(state)
+                0 -> DayEarningsView(pageState, viewModel)
+                1 -> WeekEarningsView(pageState, viewModel)
+                2 -> MonthEarningsView(pageState, viewModel)
+                3 -> YearEarningsView(pageState)
             }
         }
     }
@@ -169,7 +171,7 @@ private fun DayEarningsView(state: EarningsUiState, viewModel: EarningsViewModel
             days = state.dayEarnings.map { day ->
                 CalendarDay(
                     date = day.date,
-                    value = day.totalChange,
+                    value = day.totalChange.multiply(state.displayMultiplier),
                     isCurrentMonth = day.isCurrentMonth
                 )
             },

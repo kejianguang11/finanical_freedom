@@ -112,7 +112,7 @@ fun CashScreen(viewModel: CashViewModel = hiltViewModel()) {
             }
         } else {
             items(state.transactions, key = { "tx_${it.id}" }) { tx ->
-                TransactionCard(tx)
+                TransactionCard(tx, state.displayMultiplier)
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -140,14 +140,13 @@ fun CashScreen(viewModel: CashViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun TransactionCard(tx: com.financial.freedom.data.local.entity.CashTransaction) {
+private fun TransactionCard(tx: com.financial.freedom.data.local.entity.CashTransaction, multiplier: BigDecimal) {
     val isIncome = tx.amount >= BigDecimal.ZERO
     val typeLabel = when (tx.type) {
         "DEPOSIT_MATURITY" -> "存款到期入账"
         else -> if (isIncome) "手动存入" else "手动取出"
     }
     val amountColor = if (isIncome) FinancialColors.up else FinancialColors.down
-    val prefix = if (isIncome) "+" else ""
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -173,7 +172,7 @@ private fun TransactionCard(tx: com.financial.freedom.data.local.entity.CashTran
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
-                "$prefix¥${tx.amount.abs()}",
+                com.financial.freedom.ui.common.FormatUtils.formatSignedChange(tx.amount, multiplier),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = amountColor

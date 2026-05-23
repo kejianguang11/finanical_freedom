@@ -56,7 +56,8 @@ fun TrendChart(
     showPercentage: Boolean = false,
     secondaryData: List<DailySummary>? = null,
     secondaryLabel: String? = null,
-    secondaryColor: Color = FinancialColors.deposit
+    secondaryColor: Color = FinancialColors.deposit,
+    multiplier: BigDecimal = BigDecimal.ONE
 ) {
     if (data.isEmpty()) return
 
@@ -317,14 +318,14 @@ fun TrendChart(
                             )
                             Text(
                                 if (showPercentage) "${if (pt.value >= 0) "+" else ""}${pt.value}%"
-                                else formatMoney(pt.rawValue),
+                                else formatMoney(pt.rawValue, multiplier),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
                             )
                             Row {
                                 Text(
-                                    "涨跌 ${formatMoney(pt.dayChange.abs())}",
+                                    "涨跌 ${formatMoney(pt.dayChange.abs(), multiplier)}",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
@@ -376,12 +377,6 @@ private fun formatPctLabel(value: Double): String {
     return if (value >= 0) "+${String.format("%.1f", value)}%" else "${String.format("%.1f", value)}%"
 }
 
-private fun formatMoney(value: BigDecimal): String {
-    val abs = value.abs()
-    val integer = abs.toBigInteger().toString()
-    val formatted = integer.reversed().chunked(3).joinToString(",").reversed()
-    val decimal = abs.subtract(BigDecimal(abs.toBigInteger())).toPlainString()
-        .removePrefix("0").take(4)
-    val full = if (decimal.isNotEmpty() && decimal != ".00") "$formatted$decimal" else formatted
-    return if (value < BigDecimal.ZERO) "-$full" else full
+private fun formatMoney(value: BigDecimal, multiplier: BigDecimal): String {
+    return com.financial.freedom.ui.common.FormatUtils.formatMoney(value, multiplier)
 }
