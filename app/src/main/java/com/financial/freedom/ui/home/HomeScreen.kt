@@ -103,14 +103,15 @@ fun HomeScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            // ===== L0: 总资产 (with count-up animation + milestone glow) =====
+            // ===== L0: 总资产 =====
             Text(
-                "总资产",
-                fontSize = 12.sp,
+                "总 资 产",
+                fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Normal
+                fontWeight = FontWeight.Normal,
+                letterSpacing = 8.sp
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
 
             MilestoneGlowText(
                 netWorthFormatted = if (showPrecise) state.netWorth
@@ -128,44 +129,41 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // ===== L1: 今日总收益 (with heartbeat pulse) =====
-            PulseNumber(isUp = state.isUp) {
+            // ===== L1: 今日收益 Pill 徽章 =====
+            val gainBg = if (state.isUp) FinancialColors.upBg else FinancialColors.downBg
+            val gainText = if (state.isUp) FinancialColors.up else FinancialColors.down
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(gainBg)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = state.todayChange,
-                        fontSize = 22.sp,
+                        text = "今日 ${state.todayChange}",
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (state.isUp) FinancialColors.up else FinancialColors.down
+                        color = gainText
                     )
-                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = state.todayChangePct,
-                        fontSize = 16.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (state.isUp) FinancialColors.up else FinancialColors.down
+                        color = gainText.copy(alpha = 0.8f)
                     )
                 }
             }
 
             if (state.lastUpdateTime != null) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     "更新于 ${state.lastUpdateTime}",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-            }
-
-            // Passive income line
-            if (state.hoursSinceLastOpen >= 1 && state.passiveIncomeSinceLastOpen != "+0.00") {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    "自上次打开（${state.hoursSinceLastOpen}小时前），财富被动增长 ${state.passiveIncomeSinceLastOpen}",
-                    fontSize = 11.sp,
-                    color = FinancialColors.gold,
-                    fontWeight = FontWeight.Normal
                 )
             }
 
@@ -397,15 +395,17 @@ private fun CompactAssetCard(
                 }
                 if (todayChange != null) {
                     Spacer(Modifier.height(2.dp))
-                    val isUp = todayChange.startsWith("+")
-                    val isZero = todayChange == "+0" || todayChange == "0"
+                    val changeVal = parseMoneyValue(todayChange) ?: BigDecimal.ZERO
+                    val isZero = changeVal == BigDecimal.ZERO
+                    val displayAmount = if (changeVal > BigDecimal.ZERO) "+${formatMoneyShort(changeVal)}"
+                        else formatMoneyShort(changeVal)
                     Text(
-                        if (isZero && todayChange == "+0") "" else "今日 $todayChange",
+                        if (isZero) "" else "今日 $displayAmount",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = when {
                             isZero -> MaterialTheme.colorScheme.onSurfaceVariant
-                            isUp -> FinancialColors.up
+                            changeVal > BigDecimal.ZERO -> FinancialColors.up
                             else -> FinancialColors.down
                         }
                     )
@@ -434,7 +434,7 @@ private fun computeTotalValue(vararg values: String): String {
 private fun computeTotalChange(vararg changes: String): String {
     val sum = changes.mapNotNull { parseMoneyValue(it) }
         .fold(BigDecimal.ZERO) { acc, v -> acc.add(v) }
-    return if (sum >= BigDecimal.ZERO) "+${formatMoneyShort(sum)}" else formatMoneyShort(sum)
+    return formatMoneyShort(sum)
 }
 
 private fun computeCreditNet(receivables: String, debts: String): String {

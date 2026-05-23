@@ -44,7 +44,8 @@ data class DepositDisplay(
     val progress: Float,
     val currentValue: String,
     val currency: String,
-    val todayInterest: String
+    val todayInterest: String,
+    val isInterestUp: Boolean
 )
 
 data class HoldingDisplay(
@@ -165,11 +166,6 @@ class HoldingsViewModel @Inject constructor(
     val uiState: StateFlow<HoldingsUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            displaySettings.multiplierFlow.collect { multiplier ->
-                _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
-            }
-        }
         val accountId = accountManager.currentAccountId.value
         if (accountId != null) {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
@@ -178,8 +174,10 @@ class HoldingsViewModel @Inject constructor(
             viewModelScope.launch {
                 combine(
                     depositRepository.getAll(accountId),
-                    depositRepository.getInactiveList(accountId)
-                ) { active, matured ->
+                    depositRepository.getInactiveList(accountId),
+                    displaySettings.multiplierFlow
+                ) { active, matured, multiplier ->
+                    _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
                     val activeDisplays = active.map { d -> toDepositDisplay(d, today) }
                     val maturedDisplays = matured.map { d -> toDepositDisplay(d, today) }
                     val allDisplays = activeDisplays + maturedDisplays
@@ -195,8 +193,11 @@ class HoldingsViewModel @Inject constructor(
             viewModelScope.launch {
                 combine(
                     holdingRepository.getByType("STOCK", accountId),
-                    priceSnapshotDao.observeCount(accountId)
-                ) { stocks, _ -> stocks
+                    priceSnapshotDao.observeCount(accountId),
+                    displaySettings.multiplierFlow
+                ) { stocks, _, multiplier ->
+                    _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
+                    stocks
                 }.collect { stocks ->
                     updateHoldingDisplays("STOCK", stocks, accountId)
                 }
@@ -204,8 +205,11 @@ class HoldingsViewModel @Inject constructor(
             viewModelScope.launch {
                 combine(
                     holdingRepository.getByType("FUND", accountId),
-                    priceSnapshotDao.observeCount(accountId)
-                ) { funds, _ -> funds
+                    priceSnapshotDao.observeCount(accountId),
+                    displaySettings.multiplierFlow
+                ) { funds, _, multiplier ->
+                    _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
+                    funds
                 }.collect { funds ->
                     updateHoldingDisplays("FUND", funds, accountId)
                 }
@@ -213,8 +217,11 @@ class HoldingsViewModel @Inject constructor(
             viewModelScope.launch {
                 combine(
                     holdingRepository.getByType("GOLD", accountId),
-                    priceSnapshotDao.observeCount(accountId)
-                ) { golds, _ -> golds
+                    priceSnapshotDao.observeCount(accountId),
+                    displaySettings.multiplierFlow
+                ) { golds, _, multiplier ->
+                    _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
+                    golds
                 }.collect { golds ->
                     updateHoldingDisplays("GOLD", golds, accountId)
                 }
@@ -317,7 +324,7 @@ class HoldingsViewModel @Inject constructor(
                 depositCount = allDeposits.size,
                 totalPrincipal = formatMoney(totalPrincipalRaw.setScale(0, RoundingMode.HALF_UP)),
                 totalCurrentValue = formatMoney(totalValueRaw),
-                todayTotalInterest = formatMoney(totalInterestRaw.abs()),
+                todayTotalInterest = formatSigned(totalInterestRaw),
                 isInterestUp = totalInterestRaw >= BigDecimal.ZERO,
                 weightedProgress = weightedProgress.coerceIn(0f, 1f),
                 nearestMaturity = nearestMaturity.toString(),
@@ -409,7 +416,7 @@ class HoldingsViewModel @Inject constructor(
                             price = formatMoney(t.price.multiply(rate)),
                             cost = formatMoney(cost.multiply(rate).setScale(2, RoundingMode.HALF_UP)),
                             currentValue = formatMoney(currentVal),
-                            pnl = formatMoney(pnl.abs()),
+                            pnl = formatSigned(pnl),
                             pnlPct = "${pnlPct.abs().setScale(2, RoundingMode.HALF_UP)}%",
                             isUp = pnl >= BigDecimal.ZERO
                         )
@@ -455,9 +462,9 @@ class HoldingsViewModel @Inject constructor(
                 totalQuantity = totalQuantity.toPlainString(),
                 avgCost = formatMoney(avgCost.multiply(rate)),
                 currentPrice = formatMoney(currentPrice.multiply(rate)),
-                totalPnL = formatMoney(totalPnL.abs()),
+                totalPnL = formatSigned(totalPnL),
                 totalPnLPct = "${totalPnLPct.abs().setScale(2, RoundingMode.HALF_UP)}%",
-                todayChange = formatMoney(todayChange.abs()),
+                todayChange = formatSigned(todayChange),
                 todayChangePct = "${todayChangePct.abs().setScale(2, RoundingMode.HALF_UP)}%",
                 isUp = totalPnL >= BigDecimal.ZERO,
                 marketValue = formatMoney(marketValue),
@@ -486,7 +493,7 @@ class HoldingsViewModel @Inject constructor(
                 .divide(BigDecimal(365), 6, RoundingMode.HALF_UP)
                 .multiply(rate)
         }
-        return formatMoney(sum.abs())
+        return formatSigned(sum)
     }
 
     private fun computeHoldingCategoryValue(displays: List<HoldingDisplay>): String {
@@ -511,7 +518,7 @@ class HoldingsViewModel @Inject constructor(
             else exchangeRateRepository.getRate(h.currency, "CNY", today) ?: BigDecimal.ONE
             sum = sum.add(currentPrice.subtract(prevPrice).multiply(h.quantity).multiply(rate))
         }
-        return Pair(formatMoney(sum.abs()), sum >= BigDecimal.ZERO)
+        return Pair(formatSigned(sum), sum >= BigDecimal.ZERO)
     }
 
     private fun computeInvestmentTotal(state: HoldingsUiState): String {
@@ -529,7 +536,7 @@ class HoldingsViewModel @Inject constructor(
             parseMoneyValueOrZero(state.fundTodayChange),
             parseMoneyValueOrZero(state.goldTodayChange)
         ).fold(BigDecimal.ZERO) { acc, v -> acc.add(v) }
-        return formatMoney(sum.abs())
+        return formatSigned(sum)
     }
 
     private suspend fun toDepositDisplay(d: Deposit, today: kotlinx.datetime.LocalDate): DepositDisplay {
@@ -561,7 +568,8 @@ class HoldingsViewModel @Inject constructor(
             progress = progress,
             currentValue = formatMoney(valuationCalculator.calcDepositValueCNY(d, rate, today)),
             currency = d.currency,
-            todayInterest = "+${formatMoney(dailyInterest)}"
+            todayInterest = formatSigned(dailyInterest),
+            isInterestUp = dailyInterest >= BigDecimal.ZERO
         )
     }
 
@@ -592,9 +600,9 @@ class HoldingsViewModel @Inject constructor(
             quantity = "${h.quantity}",
             costPrice = formatMoney(h.costPrice.multiply(rate)),
             currentPrice = formatMoney(currentPrice.multiply(rate)),
-            totalPnL = formatMoney(totalPnL.abs()),
+            totalPnL = formatSigned(totalPnL),
             totalPnLPct = "${totalPnLPct.abs().setScale(2, RoundingMode.HALF_UP)}%",
-            todayChange = formatMoney(todayChange.abs()),
+            todayChange = formatSigned(todayChange),
             isUp = totalPnL >= BigDecimal.ZERO,
             marketValue = formatMoney(marketValue),
             currency = h.currency
@@ -604,6 +612,11 @@ class HoldingsViewModel @Inject constructor(
     private fun formatMoney(value: BigDecimal): String {
         val multiplier = _uiState.value.displayMultiplier
         return com.financial.freedom.ui.common.FormatUtils.formatMoney(value, multiplier)
+    }
+
+    private fun formatSigned(value: BigDecimal): String {
+        val multiplier = _uiState.value.displayMultiplier
+        return com.financial.freedom.ui.common.FormatUtils.formatSignedChange(value, multiplier)
     }
 
     private fun parseMoneyValue(formatted: String): BigDecimal {

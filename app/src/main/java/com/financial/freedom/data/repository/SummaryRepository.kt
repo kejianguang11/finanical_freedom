@@ -26,8 +26,14 @@ class SummaryRepository @Inject constructor(
     suspend fun getLatestDate(accountId: Long): LocalDate? =
         summaryDao.getLatestDate(accountId)
 
+    suspend fun getEarliestDate(accountId: Long): LocalDate? =
+        summaryDao.getEarliestDate(accountId)
+
     suspend fun getBreakdown(date: LocalDate, accountId: Long): List<DailyBreakdownItem> =
         breakdownDao.getByDate(date, accountId)
+
+    suspend fun getBreakdownsByDateRange(start: LocalDate, end: LocalDate, accountId: Long): List<DailyBreakdownItem> =
+        breakdownDao.getByDateRange(start, end, accountId)
 
     suspend fun saveDailySummary(summary: DailySummary, breakdowns: List<DailyBreakdownItem>) {
         summaryDao.insert(summary)

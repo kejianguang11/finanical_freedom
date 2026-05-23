@@ -1,7 +1,10 @@
 package com.financial.freedom.data.remote
 
 import com.financial.freedom.data.local.entity.ExchangeRate
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,7 +18,8 @@ class PriceService @Inject constructor(
     private val hkStockProvider: HKStockProvider,
     private val cnFundProvider: CNFundProvider,
     private val goldProvider: GoldProvider,
-    private val exchangeRateProvider: ExchangeRateProvider
+    private val exchangeRateProvider: ExchangeRateProvider,
+    private val forexProvider: ForexProvider
 ) {
     private fun providerFor(type: String, market: String): PriceProvider = when (type) {
         "STOCK" -> when (market) {
@@ -50,9 +54,12 @@ class PriceService @Inject constructor(
     suspend fun fetchExchangeRate(from: String, to: String, date: LocalDate): ExchangeRate? =
         exchangeRateProvider.fetchRate(from, to, date)
 
-    /** 拉取最新汇率 */
-    suspend fun fetchLatestRate(from: String, to: String): ExchangeRate? =
-        exchangeRateProvider.fetchLatest(from, to)
+    /** 拉取最新汇率 — 优先东方财富，兜底 frankfurter */
+    suspend fun fetchLatestRate(from: String, to: String): ExchangeRate? {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        return forexProvider.fetchLatest(from, to, today)
+            ?: exchangeRateProvider.fetchLatest(from, to)
+    }
 
     /** 批量拉取历史汇率 */
     suspend fun fetchExchangeRateHistory(

@@ -61,7 +61,7 @@ class CreditViewModel @Inject constructor(
                         debts = debts,
                         receivablesTotal = formatMoney(rTotal),
                         debtsTotal = formatMoney(dTotal),
-                        netAmount = if (net >= BigDecimal.ZERO) "+${formatMoney(net)}" else formatMoney(net)
+                        netAmount = formatMoney(net.abs())
                     )
                 }.collect { _uiState.value = it }
             }
@@ -77,7 +77,7 @@ class CreditViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 receivablesTotal = formatMoney(rTotal),
                 debtsTotal = formatMoney(dTotal),
-                netAmount = if (net >= BigDecimal.ZERO) "+${formatMoney(net)}" else formatMoney(net)
+                netAmount = formatMoney(net.abs())
             )
         }
     }

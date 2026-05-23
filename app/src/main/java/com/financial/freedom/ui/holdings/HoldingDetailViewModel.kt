@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -82,6 +83,15 @@ class HoldingDetailViewModel @Inject constructor(
         viewModelScope.launch {
             displaySettings.multiplierFlow.collect { multiplier ->
                 _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
+            }
+        }
+        // multiplier 变化时重新格式化所有显示值（跳过初始发射）
+        viewModelScope.launch {
+            displaySettings.multiplierFlow.drop(1).collect { _ ->
+                val h = holding ?: return@collect
+                val accountId = accountManager.currentAccountId.value ?: return@collect
+                val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                renderWithCache(h, today, accountId)
             }
         }
     }
@@ -188,13 +198,13 @@ class HoldingDetailViewModel @Inject constructor(
             type = h.type,
             status = h.status,
             currentPrice = formatMoney(currentPrice.multiply(rate)),
-            priceChange = if (priceChg >= BigDecimal.ZERO) "+${formatMoney(priceChg)}" else formatMoney(priceChg),
-            priceChangePct = if (priceChgPct >= BigDecimal.ZERO) "+${priceChgPct}%" else "${priceChgPct}%",
-            todayChange = if (todayChg >= BigDecimal.ZERO) "+${formatMoney(todayChg)}" else formatMoney(todayChg),
-            todayChangePct = if (todayChgPct >= BigDecimal.ZERO) "+${todayChgPct}%" else "${todayChgPct}%",
+            priceChange = formatMoney(priceChg.abs()),
+            priceChangePct = "${priceChgPct.abs()}%",
+            todayChange = formatMoney(todayChg.abs()),
+            todayChangePct = "${todayChgPct.abs()}%",
             isUp = isUp,
-            totalPnL = if (pnL >= BigDecimal.ZERO) "+${formatMoney(pnL)}" else formatMoney(pnL),
-            totalPnLPct = if (pnlPct >= BigDecimal.ZERO) "+${pnlPct}%" else "${pnlPct}%",
+            totalPnL = formatMoney(pnL.abs()),
+            totalPnLPct = "${pnlPct.abs()}%",
             quantity = "${h.quantity}",
             costPrice = formatMoney(h.costPrice.multiply(rate)),
             totalCost = formatMoney(costTotal),

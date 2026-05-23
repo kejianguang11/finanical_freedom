@@ -8,11 +8,13 @@ import com.financial.freedom.data.repository.ExchangeRateRepository
 import com.financial.freedom.domain.account.AccountManager
 import com.financial.freedom.domain.calculator.InterestCalculator
 import com.financial.freedom.domain.calculator.ValuationCalculator
+import com.financial.freedom.domain.settings.DisplaySettings
 import com.financial.freedom.ui.holdings.DepositDisplay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -31,7 +33,8 @@ data class BankDepositsUiState(
     val totalInterest: String = "",
     val totalCurrentValue: String = "",
     val todayTotalInterest: String = "",
-    val deposits: List<DepositDisplay> = emptyList()
+    val deposits: List<DepositDisplay> = emptyList(),
+    val displayMultiplier: BigDecimal = BigDecimal.ONE
 )
 
 @HiltViewModel
@@ -40,11 +43,29 @@ class BankDepositsViewModel @Inject constructor(
     private val exchangeRateRepository: ExchangeRateRepository,
     private val valuationCalculator: ValuationCalculator,
     private val interestCalculator: InterestCalculator,
-    private val accountManager: AccountManager
+    private val accountManager: AccountManager,
+    private val displaySettings: DisplaySettings
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BankDepositsUiState())
     val uiState: StateFlow<BankDepositsUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            displaySettings.multiplierFlow.collect { multiplier ->
+                _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
+            }
+        }
+        // multiplier 变化时重新格式化所有显示值
+        viewModelScope.launch {
+            displaySettings.multiplierFlow.drop(1).collect {
+                val state = _uiState.value
+                if (state.bankName.isNotBlank()) {
+                    load(state.bankName, state.status)
+                }
+            }
+        }
+    }
 
     fun load(bankName: String, status: String) {
         if (_uiState.value.bankName == bankName && _uiState.value.status == status) return
@@ -96,8 +117,7 @@ class BankDepositsViewModel @Inject constructor(
                 totalPrincipal = formatMoney(totalPrincipalRaw.setScale(0, RoundingMode.HALF_UP)),
                 totalInterest = formatMoney(totalInterestRaw),
                 totalCurrentValue = formatMoney(totalValueRaw),
-                todayTotalInterest = if (todayInterestRaw >= BigDecimal.ZERO)
-                    "+${formatMoney(todayInterestRaw)}" else formatMoney(todayInterestRaw),
+                todayTotalInterest = formatMoney(todayInterestRaw.abs()),
                 deposits = deposits
             )
         }
@@ -145,16 +165,13 @@ class BankDepositsViewModel @Inject constructor(
             progress = progress,
             currentValue = formatMoney(valuationCalculator.calcDepositValueCNY(d, rate, today)),
             currency = d.currency,
-            todayInterest = "+${formatMoney(dailyInterest)}"
+            todayInterest = formatMoney(dailyInterest.abs()),
+            isInterestUp = dailyInterest >= BigDecimal.ZERO
         )
     }
 
     private fun formatMoney(value: BigDecimal): String {
-        val abs = value.abs().setScale(2, RoundingMode.HALF_UP)
-        val intPart = abs.toBigInteger().toString()
-        val formatted = intPart.reversed().chunked(3).joinToString(",").reversed()
-        val decimal = abs.subtract(BigDecimal(abs.toBigInteger())).toPlainString().removePrefix("0")
-        val sign = if (value < BigDecimal.ZERO) "-" else ""
-        return "$sign$formatted$decimal"
+        val multiplier = _uiState.value.displayMultiplier
+        return com.financial.freedom.ui.common.FormatUtils.formatMoney(value, multiplier)
     }
 }

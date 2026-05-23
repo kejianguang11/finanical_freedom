@@ -288,7 +288,6 @@ private fun DepositCard(
     onDelete: (Long) -> Unit
 ) {
     val cardAlpha = if (isMatured) 0.6f else 1f
-    val isAlternate = index % 2 == 1
     val barColor = if (isMatured) bankColor.copy(alpha = 0.4f)
         else progressBarColor(deposit.progress, cardAlpha, bankColor)
     val progressPct = (deposit.progress * 100).roundToInt()
@@ -297,9 +296,7 @@ private fun DepositCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isAlternate)
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f * cardAlpha)
-            else MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
@@ -371,7 +368,7 @@ private fun DepositCard(
                             deposit.todayInterest,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = FinancialColors.up
+                            color = if (deposit.isInterestUp) FinancialColors.up else FinancialColors.down
                         )
                     }
                 }

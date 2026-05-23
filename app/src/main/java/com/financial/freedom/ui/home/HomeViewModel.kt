@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -117,6 +118,13 @@ class HomeViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
             }
         }
+        // multiplier 变化时重新格式化所有显示值（跳过初始发射避免与 init 中的 refreshData 重复）
+        viewModelScope.launch {
+            displaySettings.multiplierFlow.drop(1).collect { _ ->
+                val accountId = accountManager.currentAccountId.value ?: return@collect
+                refreshData(accountId)
+            }
+        }
         viewModelScope.launch {
             if (initStarted) return@launch
             initStarted = true
@@ -124,6 +132,12 @@ class HomeViewModel @Inject constructor(
             val accountId = accountManager.currentAccountId.value ?: return@launch
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
             Log.d("HomeVM", "init fast path start")
+
+            // 0. 检查数据版本：计算逻辑变更时强制全量回填
+            val dataVersionCurrent = 2
+            val prefs = context.getSharedPreferences("account_prefs", Context.MODE_PRIVATE)
+            val dataVersionStored = prefs.getInt("data_version", 0)
+            val needsDataMigration = dataVersionStored < dataVersionCurrent
 
             // 1. 修正已知错误数据，再渲染本地缓存
             val symbolsFixed = fixBadSymbols(accountId)
@@ -140,8 +154,8 @@ class HomeViewModel @Inject constructor(
                 Log.d("HomeVM", "starting backfill on IO...")
                 val backfillStart = System.currentTimeMillis()
                 withContext(Dispatchers.IO) {
-                    if (symbolsFixed) {
-                        // 修正了错误代码后强制全量回填，不能用 backfillIfNeeded
+                    if (symbolsFixed || needsDataMigration) {
+                        // 修正了错误代码或数据版本升级后强制全量回填，不能用 backfillIfNeeded
                         // 因为 refreshData 可能已插入占位 summary 导致 backfillIfNeeded 跳过
                         val deposits = depositDao.getAllList(accountId)
                         val holdings = holdingDao.getAllList(accountId)
@@ -149,6 +163,10 @@ class HomeViewModel @Inject constructor(
                         val holdingMin = holdings.minOfOrNull { it.costDate }
                         val earliest = listOfNotNull(depositMin, holdingMin).minOrNull() ?: today
                         backfillEngine.markDirtyAndBackfill(earliest, accountId)
+                        if (needsDataMigration) {
+                            prefs.edit().putInt("data_version", dataVersionCurrent).apply()
+                            Log.w("HomeVM", "Data migration complete: version $dataVersionStored → $dataVersionCurrent")
+                        }
                     } else {
                         backfillEngine.backfillIfNeeded(accountId)
                     }
@@ -288,8 +306,13 @@ class HomeViewModel @Inject constructor(
             val rateResult = priceService.fetchLatestRate("USD", "CNY")
             if (rateResult != null) {
                 exchangeRateDao.insert(rateResult)
+                Log.d("HomeVM", "Exchange rate updated: USD/CNY = ${rateResult.rate} (date=${rateResult.date})")
+            } else {
+                Log.w("HomeVM", "Exchange rate fetch returned null — cached rate may be stale")
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            Log.w("HomeVM", "Exchange rate fetch FAILED: ${e.message}")
+        }
 
         if (anySuccess) {
             needsRecompute = true
@@ -307,62 +330,8 @@ class HomeViewModel @Inject constructor(
     private suspend fun refreshData(accountId: Long) {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
-        // Load cash/credit data
-        val cashBal = cashRepository.getBalance(accountId)
-        val rcvTotal = receivableRepository.getTotal(accountId)
-        val dbtTotal = debtRepository.getTotal(accountId)
-
-        val todaySummary = summaryRepository.getByDate(today, accountId)
-
-        if (todaySummary != null && todaySummary.totalValueCNY > BigDecimal.ZERO) {
-            val breakdown = summaryRepository.getBreakdown(today, accountId)
-            val netWorth = todaySummary.totalValueCNY.add(cashBal).add(rcvTotal).subtract(dbtTotal)
-
-            // 累计投入/收益 = 存款本金 + BUY 交易成本
-            val deposits = depositDao.getActiveList(accountId)
-            var cumContrib = deposits.fold(BigDecimal.ZERO) { acc, d ->
-                val rate = exchangeRateDao.getLatestRates().firstOrNull { it.fromCurrency == d.currency && it.toCurrency == "CNY" }?.rate ?: BigDecimal.ONE
-                acc.add(d.principal.multiply(rate)).setScale(2, RoundingMode.HALF_UP)
-            }
-            val holdings = holdingDao.getAllList(accountId)
-            val allTxs = transactionDao.getAllList(accountId)
-            for (tx in allTxs) {
-                if (tx.type != "BUY") continue
-                val h = holdings.firstOrNull { it.id == tx.holdingId } ?: continue
-                val rate = exchangeRateDao.getLatestRates().firstOrNull { it.fromCurrency == h.currency && it.toCurrency == "CNY" }?.rate ?: BigDecimal.ONE
-                cumContrib += tx.price.multiply(tx.quantity).add(tx.fee).multiply(rate).setScale(2, RoundingMode.HALF_UP)
-            }
-            val cumReturn = todaySummary.totalValueCNY.subtract(cumContrib).setScale(2, RoundingMode.HALF_UP)
-            val cumReturnPct = if (cumContrib > BigDecimal.ZERO) {
-                cumReturn.divide(cumContrib, 6, RoundingMode.HALF_UP).multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
-            } else BigDecimal.ZERO
-
-            _uiState.value = _uiState.value.copy(
-                totalValueCNY = formatMoney(todaySummary.totalValueCNY),
-                todayChange = if (todaySummary.dayChange >= BigDecimal.ZERO) "+${formatMoney(todaySummary.dayChange)}" else formatMoney(todaySummary.dayChange),
-                todayChangePct = if (todaySummary.dayChangePct >= BigDecimal.ZERO) "+${todaySummary.dayChangePct}%" else "${todaySummary.dayChangePct}%",
-                isUp = todaySummary.dayChange >= BigDecimal.ZERO,
-                depositValue = breakdownValue(breakdown, "DEPOSIT"),
-                depositChange = breakdownChange(breakdown, "DEPOSIT"),
-                stockValue = breakdownValue(breakdown, "STOCK"),
-                stockChange = breakdownChange(breakdown, "STOCK"),
-                fundValue = breakdownValue(breakdown, "FUND"),
-                fundChange = breakdownChange(breakdown, "FUND"),
-                goldValue = breakdownValue(breakdown, "GOLD"),
-                goldChange = breakdownChange(breakdown, "GOLD"),
-                cashBalance = formatMoney(cashBal),
-                receivablesTotal = formatMoney(rcvTotal),
-                debtsTotal = formatMoney(dbtTotal),
-                netWorth = formatMoney(netWorth),
-                netWorthRaw = netWorth,
-                todayGainRaw = todaySummary.dayChange,
-                cumulativeContributions = formatMoney(cumContrib),
-                cumulativeReturn = if (cumReturn >= BigDecimal.ZERO) "+${formatMoney(cumReturn)}" else formatMoney(cumReturn),
-                cumulativeReturnPct = if (cumReturnPct >= BigDecimal.ZERO) "+${cumReturnPct}%" else "${cumReturnPct}%"
-            )
-        } else {
-            computeFromEntities(accountId, today)
-        }
+        // 当日数据始终实时重算，不读缓存（因为当日价格/汇率/新增资产可能变化）
+        computeFromEntities(accountId, today)
     }
 
     private suspend fun computeFromEntities(accountId: Long, asOfDate: LocalDate) {
@@ -420,12 +389,21 @@ class HomeViewModel @Inject constructor(
                 netInflow += d.principal.multiply(rate).setScale(2, RoundingMode.HALF_UP)
             }
         }
-        // 买入交易成本计入 netInflow，避免加仓日资产突然增加导致虚假收益
+        // 买入交易成本计入 netInflow，同时按类型拆分避免各分类变动包含成本基数
         val txs = withContext(Dispatchers.IO) { transactionDao.getAllList(accountId) }.filter { it.date == asOfDate && it.type == "BUY" }
+        var stockBuyCost = BigDecimal.ZERO
+        var fundBuyCost = BigDecimal.ZERO
+        var goldBuyCost = BigDecimal.ZERO
         for (tx in txs) {
             val h = holdings.firstOrNull { it.id == tx.holdingId } ?: continue
             val rate = getOrFetchRate(h.currency, "CNY", asOfDate, rates)
-            netInflow += tx.price.multiply(tx.quantity).add(tx.fee).multiply(rate).setScale(2, RoundingMode.HALF_UP)
+            val costCNY = tx.price.multiply(tx.quantity).add(tx.fee).multiply(rate).setScale(2, RoundingMode.HALF_UP)
+            netInflow += costCNY
+            when (h.type) {
+                "STOCK" -> stockBuyCost += costCNY
+                "FUND" -> fundBuyCost += costCNY
+                "GOLD" -> goldBuyCost += costCNY
+            }
         }
 
         // 昨日存款总值从 breakdown 读取（存款利息计算稳定，无随机波动问题）
@@ -452,11 +430,22 @@ class HomeViewModel @Inject constructor(
                 .multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
         } else BigDecimal.ZERO
 
-        // stock/fund/gold 各自独立舍入，deposit 由减法反推确保 Σbreakdown.changeCNY == dayChange
-        val stockChange = stockTotal.subtract(yesterdayStockTotal).setScale(2, RoundingMode.HALF_UP)
-        val fundChange = fundTotal.subtract(yesterdayFundTotal).setScale(2, RoundingMode.HALF_UP)
-        val goldChange = goldTotal.subtract(yesterdayGoldTotal).setScale(2, RoundingMode.HALF_UP)
-        val depositChangeExContribution = dayChange.subtract(stockChange).subtract(fundChange).subtract(goldChange)
+        // 存款变动使用直接公式（日利息），与持仓页/BackfillEngine 保持一致
+        var directDepositChange = BigDecimal.ZERO
+        for (d in deposits) {
+            val rate = getOrFetchRate(d.currency, "CNY", asOfDate, rates)
+            directDepositChange += d.principal.multiply(d.interestRate)
+                .divide(BigDecimal(365), 6, RoundingMode.HALF_UP)
+                .multiply(rate)
+        }
+        directDepositChange = directDepositChange.setScale(2, RoundingMode.HALF_UP)
+
+        // stock/fund/gold 各自独立舍入，扣除当日买入成本避免成本基数计为收益
+        val stockChange = stockTotal.subtract(yesterdayStockTotal).subtract(stockBuyCost).setScale(2, RoundingMode.HALF_UP)
+        val fundChange = fundTotal.subtract(yesterdayFundTotal).subtract(fundBuyCost).setScale(2, RoundingMode.HALF_UP)
+        val goldChange = goldTotal.subtract(yesterdayGoldTotal).subtract(goldBuyCost).setScale(2, RoundingMode.HALF_UP)
+
+        val fxResidual = dayChange.subtract(directDepositChange).subtract(stockChange).subtract(fundChange).subtract(goldChange)
 
         // 累计投入 = 所有存款本金 + BUY 交易成本（CNY 折算）
         var cumulativeContributions = deposits.fold(BigDecimal.ZERO) { acc, d ->
@@ -482,13 +471,20 @@ class HomeViewModel @Inject constructor(
         val dbtTotalNw = debtRepository.getTotal(accountId)
         val netWorth = totalCNY.add(cashBal).add(rcvTotalNw).subtract(dbtTotalNw)
 
+        // 今日收益 = 4 个可见分类变动之和（不含 FX 残差）
+        val displayDayChange = directDepositChange + stockChange + fundChange + goldChange
+        val displayDayChangePct = if (totalCNY > BigDecimal.ZERO) {
+            displayDayChange.divide(totalCNY, 6, RoundingMode.HALF_UP)
+                .multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
+        } else BigDecimal.ZERO
+
         _uiState.value = _uiState.value.copy(
-            totalValueCNY = formatMoney(totalCNY),
-            todayChange = if (dayChange >= BigDecimal.ZERO) "+${formatMoney(dayChange)}" else formatMoney(dayChange),
-            todayChangePct = if (dayChangePct >= BigDecimal.ZERO) "+${dayChangePct}%" else "${dayChangePct}%",
-            isUp = dayChange >= BigDecimal.ZERO,
+            totalValueCNY = formatMoneyShort(totalCNY),
+            todayChange = formatSignedChange(displayDayChange),
+            todayChangePct = "${displayDayChangePct}%",
+            isUp = displayDayChange >= BigDecimal.ZERO,
             depositValue = formatMoney(depositTotal),
-            depositChange = formatSignedChange(depositChangeExContribution),
+            depositChange = formatSignedChange(directDepositChange),
             stockValue = formatMoney(stockTotal),
             stockChange = formatSignedChange(stockChange),
             fundValue = formatMoney(fundTotal),
@@ -500,10 +496,10 @@ class HomeViewModel @Inject constructor(
             debtsTotal = formatMoney(dbtTotalNw),
             netWorth = formatMoney(netWorth),
             netWorthRaw = netWorth,
-            todayGainRaw = dayChange,
+            todayGainRaw = displayDayChange,
             cumulativeContributions = formatMoney(cumulativeContributions),
-            cumulativeReturn = if (cumulativeReturn >= BigDecimal.ZERO) "+${formatMoney(cumulativeReturn)}" else formatMoney(cumulativeReturn),
-            cumulativeReturnPct = if (cumulativeReturnPct >= BigDecimal.ZERO) "+${cumulativeReturnPct}%" else "${cumulativeReturnPct}%"
+            cumulativeReturn = formatSignedChange(cumulativeReturn),
+            cumulativeReturnPct = "${cumulativeReturnPct}%"
         )
 
         // Persist today's summary to DB
@@ -512,12 +508,15 @@ class HomeViewModel @Inject constructor(
             dayChangePct = dayChangePct, netInflow = netInflow, accountId = accountId,
             netWorth = netWorth, cashBalance = cashBal
         )
-        val breakdowns = listOf(
-            DailyBreakdownItem(date = asOfDate, type = "DEPOSIT", valueCNY = depositTotal, changeCNY = depositChangeExContribution, contribution = netInflow, accountId = accountId),
+        val breakdowns = mutableListOf(
+            DailyBreakdownItem(date = asOfDate, type = "DEPOSIT", valueCNY = depositTotal, changeCNY = directDepositChange, contribution = netInflow, accountId = accountId),
             DailyBreakdownItem(date = asOfDate, type = "STOCK", valueCNY = stockTotal, changeCNY = stockChange, accountId = accountId),
             DailyBreakdownItem(date = asOfDate, type = "FUND", valueCNY = fundTotal, changeCNY = fundChange, accountId = accountId),
             DailyBreakdownItem(date = asOfDate, type = "GOLD", valueCNY = goldTotal, changeCNY = goldChange, accountId = accountId)
         )
+        if (fxResidual.abs() > BigDecimal.ZERO) {
+            breakdowns += DailyBreakdownItem(date = asOfDate, type = "FX", valueCNY = BigDecimal.ZERO, changeCNY = fxResidual, accountId = accountId)
+        }
         summaryRepository.saveTodaySummary(summary, breakdowns)
         needsRecompute = false
     }
@@ -525,6 +524,11 @@ class HomeViewModel @Inject constructor(
     private fun formatSignedChange(change: BigDecimal): String {
         val multiplier = _uiState.value.displayMultiplier
         return com.financial.freedom.ui.common.FormatUtils.formatSignedChange(change, multiplier)
+    }
+
+    private fun formatMoneyShort(value: BigDecimal): String {
+        val multiplier = _uiState.value.displayMultiplier
+        return com.financial.freedom.ui.common.FormatUtils.formatMoneyShort(value, multiplier)
     }
 
     private suspend fun getOrFetchRate(from: String, to: String, date: LocalDate, cache: MutableMap<String, BigDecimal>): BigDecimal {
@@ -579,7 +583,7 @@ class HomeViewModel @Inject constructor(
             } catch (_: Exception) { today }
             val cumChange = dailySummaryDao.getCumulativeDayChange(accountId, lastOpenDate, today)
             if (cumChange > BigDecimal.ZERO) {
-                passiveIncome = "+${formatMoney(cumChange)}"
+                passiveIncome = formatMoney(cumChange.abs())
             }
         }
 
@@ -630,9 +634,8 @@ class HomeViewModel @Inject constructor(
     private fun breakdownChange(items: List<DailyBreakdownItem>, type: String): String {
         val item = items.firstOrNull { it.type == type }
         return item?.let {
-            val change = it.changeCNY
-            if (change >= BigDecimal.ZERO) "+${formatMoney(change)}" else formatMoney(change)
-        } ?: "+0"
+            formatMoney(it.changeCNY.abs())
+        } ?: "0"
     }
 
     private fun formatMoney(value: BigDecimal): String {

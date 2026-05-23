@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.financial.freedom.data.local.dao.CashTransactionDao
 import com.financial.freedom.data.local.dao.HoldingDao
+import com.financial.freedom.data.local.dao.TransactionDao
 import com.financial.freedom.data.local.entity.CashTransaction
 import com.financial.freedom.data.local.entity.Holding
+import com.financial.freedom.data.local.entity.Transaction
 import com.financial.freedom.data.remote.PriceService
 import com.financial.freedom.data.remote.SearchResult
 import com.financial.freedom.domain.account.AccountManager
@@ -26,6 +28,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AddHoldingViewModel @Inject constructor(
     private val holdingDao: HoldingDao,
+    private val transactionDao: TransactionDao,
     private val cashTransactionDao: CashTransactionDao,
     private val priceService: PriceService,
     private val backfillEngine: BackfillEngine,
@@ -74,7 +77,17 @@ class AddHoldingViewModel @Inject constructor(
         _isSaving.value = true
         viewModelScope.launch {
             try {
-                holdingDao.insert(holding.copy(accountId = accountId))
+                val holdingId = holdingDao.insert(holding.copy(accountId = accountId))
+                transactionDao.insert(
+                    Transaction(
+                        holdingId = holdingId,
+                        accountId = accountId,
+                        type = "BUY",
+                        date = holding.costDate,
+                        price = holding.costPrice,
+                        quantity = holding.quantity
+                    )
+                )
                 if (deductFromCash) {
                     val totalCost = holding.quantity.multiply(holding.costPrice).setScale(2, RoundingMode.HALF_UP)
                     cashTransactionDao.insert(

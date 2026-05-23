@@ -323,9 +323,8 @@ fun TrendChart(
                                 color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
                             )
                             Row {
-                                val sign = if (pt.dayChange >= BigDecimal.ZERO) "+" else ""
                                 Text(
-                                    "$sign${formatMoney(pt.dayChange)}",
+                                    "涨跌 ${formatMoney(pt.dayChange.abs())}",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down

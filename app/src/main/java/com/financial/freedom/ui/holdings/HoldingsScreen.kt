@@ -286,7 +286,7 @@ fun DepositCard(deposit: DepositDisplay, onClick: () -> Unit = {}) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(deposit.todayInterest, fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (deposit.todayInterest.startsWith("+")) FinancialColors.up else FinancialColors.down)
+                        color = if (deposit.isInterestUp) FinancialColors.up else FinancialColors.down)
                 }
                 Spacer(Modifier.height(6.dp))
 
@@ -329,7 +329,7 @@ fun MaturedDepositCard(deposit: DepositDisplay, onClick: () -> Unit = {}) {
             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Max)) {
@@ -369,7 +369,7 @@ fun MaturedDepositCard(deposit: DepositDisplay, onClick: () -> Unit = {}) {
 
 // ===== Holding Card (股票/基金/黄金) =====
 @Composable
-fun HoldingCard(holding: HoldingDisplay, isAlternate: Boolean = false, onClick: () -> Unit = {}) {
+fun HoldingCard(holding: HoldingDisplay, onClick: () -> Unit = {}) {
     val typeColor = when (holding.type) {
         "STOCK" -> FinancialColors.stock
         "FUND" -> FinancialColors.fund
@@ -384,9 +384,7 @@ fun HoldingCard(holding: HoldingDisplay, isAlternate: Boolean = false, onClick: 
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isAlternate)
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            else MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {
@@ -429,11 +427,7 @@ fun HoldingCard(holding: HoldingDisplay, isAlternate: Boolean = false, onClick: 
                         Text("持仓盈亏", style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(2.dp))
-                        val pnlColor = when {
-                            holding.totalPnL.startsWith("+") -> FinancialColors.up
-                            holding.totalPnL.startsWith("-") -> FinancialColors.down
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
+                        val pnlColor = if (holding.isUp) FinancialColors.up else FinancialColors.down
                         Text(holding.totalPnL, style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold, color = pnlColor)
                     }
@@ -441,11 +435,7 @@ fun HoldingCard(holding: HoldingDisplay, isAlternate: Boolean = false, onClick: 
                         Text("今日", style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(2.dp))
-                        val todayColor = when {
-                            holding.todayChange.startsWith("+") -> FinancialColors.up
-                            holding.todayChange.startsWith("-") -> FinancialColors.down
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
+                        val todayColor = if (holding.isUp) FinancialColors.up else FinancialColors.down
                         Text(holding.todayChange, style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold, color = todayColor)
                     }

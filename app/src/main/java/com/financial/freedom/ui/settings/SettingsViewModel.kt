@@ -416,10 +416,13 @@ class SettingsViewModel @Inject constructor(
 
     private suspend fun loadRates() {
         val rates = exchangeRateDao.getLatestRates()
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         _uiState.value = _uiState.value.copy(
             rates = if (rates.isEmpty()) "暂无汇率数据，点击刷新" else
                 rates.joinToString("\n") { r ->
-                    "${r.fromCurrency}→${r.toCurrency}: ${r.rate.setScale(4, java.math.RoundingMode.HALF_UP)} （${r.date}）"
+                    val daysAgo = today.toEpochDays() - r.date.toEpochDays()
+                    val staleMark = if (daysAgo > 2) " [已过期${daysAgo}天]" else ""
+                    "${r.fromCurrency}→${r.toCurrency}: ${r.rate.setScale(4, java.math.RoundingMode.HALF_UP)} （${r.date}）$staleMark"
                 }
         )
     }

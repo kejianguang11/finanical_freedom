@@ -238,9 +238,8 @@ fun ReducePositionDialog(
                     Text("剩余 ${previewRemaining} 股",
                         fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                     if (previewPnL != null && previewPnLPct != null && previewPnL != BigDecimal.ZERO) {
-                        val pnlSign = if (previewPnL >= BigDecimal.ZERO) "+" else ""
                         val isProfit = previewPnL >= BigDecimal.ZERO
-                        Text("实现盈亏 ${pnlSign}¥${previewPnL} (${pnlSign}${previewPnLPct}%)",
+                        Text("实现盈亏 ¥${previewPnL.abs()} (${previewPnLPct.abs()}%)",
                             fontSize = 14.sp,
                             color = if (isProfit) com.financial.freedom.ui.theme.FinancialColors.up
                                     else com.financial.freedom.ui.theme.FinancialColors.down)

@@ -1,9 +1,7 @@
 package com.financial.freedom.ui.earnings
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,9 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,13 +26,11 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,6 +47,9 @@ import com.financial.freedom.ui.components.CalendarDay
 import com.financial.freedom.ui.components.CalendarView
 import com.financial.freedom.ui.theme.FinancialColors
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -105,73 +107,63 @@ fun EarningsScreen(
             when (page) {
                 0 -> DayEarningsView(state, viewModel)
                 1 -> WeekEarningsView(state, viewModel)
-                2 -> MonthEarningsView(state)
+                2 -> MonthEarningsView(state, viewModel)
                 3 -> YearEarningsView(state)
             }
         }
     }
 
-    if (state.showBreakdown) {
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.dismissBreakdown() },
-            sheetState = rememberModalBottomSheetState()
-        ) {
-            BreakdownSheet(state.selectedDayBreakdown, state.displayMultiplier)
-        }
-    }
-}
-
-@Composable
-private fun BreakdownSheet(breakdown: List<com.financial.freedom.data.local.entity.DailyBreakdownItem>, multiplier: java.math.BigDecimal = java.math.BigDecimal.ONE) {
-    Column(Modifier.padding(24.dp)) {
-        Text("收益明细", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(12.dp))
-        if (breakdown.isEmpty()) {
-            Text("暂无明细数据", style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            var total = BigDecimal.ZERO
-            breakdown.forEach { item ->
-                total += item.changeCNY
-                val icon = when (item.type) {
-                    "DEPOSIT" -> "存款"
-                    "STOCK" -> "股票"
-                    "FUND" -> "基金"
-                    "GOLD" -> "黄金"
-                    else -> item.type
-                }
-                val changeText = if (item.changeCNY >= BigDecimal.ZERO)
-                    "+${formatMoney(item.changeCNY, multiplier)}" else formatMoney(item.changeCNY, multiplier)
-                val color = if (item.changeCNY >= BigDecimal.ZERO)
-                    FinancialColors.up else FinancialColors.down
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(icon, style = MaterialTheme.typography.bodyMedium)
-                    Text(changeText, color = color, fontWeight = FontWeight.Medium)
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("合计", fontWeight = FontWeight.Bold)
-                val totalText = if (total >= BigDecimal.ZERO) "+${formatMoney(total, multiplier)}" else formatMoney(total, multiplier)
-                Text(totalText,
-                    fontWeight = FontWeight.Bold,
-                    color = if (total >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down)
-            }
-        }
-    }
 }
 
 // ===== Day View =====
 @Composable
 private fun DayEarningsView(state: EarningsUiState, viewModel: EarningsViewModel) {
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    // Compute monthly totals for summary bar
+    val currentMonthDays = state.dayEarnings.filter { it.isCurrentMonth }
+    val monthTotal = currentMonthDays.fold(BigDecimal.ZERO) { acc, d -> acc + d.totalChange }
+    val monthUpDays = currentMonthDays.count { it.totalChange > BigDecimal.ZERO }
+    val monthDownDays = currentMonthDays.count { it.totalChange < BigDecimal.ZERO }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .then(Modifier.verticalScroll(rememberScrollState()))
+    ) {
+        // Monthly summary bar
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "${state.currentMonth.monthNumber}月收益",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val isUp = monthTotal >= BigDecimal.ZERO
+                val totalText = formatChangeAmount(monthTotal, state.displayMultiplier)
+                Text(
+                    totalText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = if (monthTotal == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                        else if (isUp) FinancialColors.up else FinancialColors.down,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                if (monthUpDays + monthDownDays > 0) {
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "涨${monthUpDays}跌${monthDownDays}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         CalendarView(
             currentMonth = state.currentMonth,
             days = state.dayEarnings.map { day ->
@@ -183,12 +175,135 @@ private fun DayEarningsView(state: EarningsUiState, viewModel: EarningsViewModel
             },
             onPrevMonth = { viewModel.changeMonth(false) },
             onNextMonth = { viewModel.changeMonth(true) },
-            onDayClick = { date -> viewModel.selectDay(date) }
+            onDayClick = { date -> viewModel.selectDay(date) },
+            selectedDate = state.selectedDay
         )
+
+        // Inline breakdown panel for selected day
+        if (state.selectedDay != null) {
+            Spacer(Modifier.height(12.dp))
+            DayBreakdownPanel(state)
+        }
     }
 }
 
-// ===== Week View: Monthly grouping =====
+@Composable
+private fun DayBreakdownPanel(state: EarningsUiState) {
+    val day = state.selectedDay ?: return
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${day.monthNumber}月${day.dayOfMonth}日",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                val dayTotal = state.dayBreakdown.fold(BigDecimal.ZERO) { acc, b -> acc + b.changeCNY }
+                if (dayTotal != BigDecimal.ZERO) {
+                    Text(
+                        formatChangeAmount(dayTotal, state.displayMultiplier),
+                        fontWeight = FontWeight.Bold,
+                        color = if (dayTotal >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            if (state.dayBreakdown.isEmpty()) {
+                Text(
+                    "当日暂无收益明细",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                state.dayBreakdown.forEach { item ->
+                    val isUp = item.changeCNY >= BigDecimal.ZERO
+                    val changeText = formatChangeAmount(item.changeCNY, state.displayMultiplier)
+
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            item.label,
+                            Modifier.width(48.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            changeText,
+                            Modifier.width(90.dp),
+                            fontWeight = FontWeight.Medium,
+                            color = if (isUp) FinancialColors.up else FinancialColors.down,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            softWrap = false
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(item.fraction)
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(
+                                        if (isUp) FinancialColors.up.copy(alpha = 0.5f)
+                                        else FinancialColors.down.copy(alpha = 0.5f)
+                                    )
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "${(item.fraction * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(32.dp)
+                        )
+                    }
+                }
+
+                val totalChange = state.dayBreakdown.fold(BigDecimal.ZERO) { acc, b -> acc + b.changeCNY }
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("合计", fontWeight = FontWeight.Bold)
+                    Text(
+                        formatChangeAmount(totalChange, state.displayMultiplier),
+                        fontWeight = FontWeight.Bold,
+                        color = if (totalChange >= BigDecimal.ZERO) FinancialColors.up
+                        else FinancialColors.down,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ===== Week View: Month nav + grid + details below (matching Day view pattern) =====
 @Composable
 private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewModel) {
     if (state.weekEarnings.isEmpty()) {
@@ -199,224 +314,498 @@ private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewMode
         return
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    val monthTotal = state.weekEarnings.fold(BigDecimal.ZERO) { acc, w -> acc + w.totalChange }
+    val weekRows = state.weekEarnings.chunked(2)
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .then(Modifier.verticalScroll(rememberScrollState()))
     ) {
         // Month navigation header
-        item {
-            Row(
-                Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "<",
-                    Modifier.clickable(onClick = { viewModel.changeViewMonth(false) }).padding(8.dp),
-                    fontSize = 22.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "${state.currentViewMonth.year}年${state.currentViewMonth.monthNumber}月",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    ">",
-                    Modifier.clickable(onClick = { viewModel.changeViewMonth(true) }).padding(8.dp),
-                    fontSize = 22.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "<",
+                Modifier.clickable(onClick = { viewModel.changeViewMonth(false) }).padding(8.dp),
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "${state.currentViewMonth.year}年${state.currentViewMonth.monthNumber}月",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                ">",
+                Modifier.clickable(onClick = { viewModel.changeViewMonth(true) }).padding(8.dp),
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
-        // Week cards
-        itemsIndexed(state.weekEarnings) { index, week ->
-            val isUp = week.totalChange >= BigDecimal.ZERO
-            val isExpanded = state.weekExpandedIndex == index
+        // Month summary
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "${state.currentViewMonth.monthNumber}月收益",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            val totalIsUp = monthTotal >= BigDecimal.ZERO
+            Text(
+                formatChangeAmount(monthTotal, state.displayMultiplier),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = if (monthTotal == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                    else if (totalIsUp) FinancialColors.up else FinancialColors.down,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
 
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth().clickable { viewModel.toggleWeekExpanded(index) },
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(Modifier.padding(14.dp)) {
-                    // Week header
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                "${week.weekLabel}  ${week.startDate.monthNumber}.${week.startDate.dayOfMonth} - ${week.endDate.monthNumber}.${week.endDate.dayOfMonth}",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
+        // 2-column week grid
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            weekRows.forEachIndexed { rowIdx, row ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    row.forEachIndexed { colIdx, week ->
+                        val weekIdx = rowIdx * 2 + colIdx
+                        val isSelected = state.selectedWeekIndex == weekIdx
+                        val isUp = week.totalChange >= BigDecimal.ZERO
+
+                        ElevatedCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .then(
+                                    if (isSelected) Modifier.border(1.5.dp, FinancialColors.gold, RoundedCornerShape(14.dp))
+                                    else Modifier
+                                )
+                                .clickable { viewModel.selectWeek(weekIdx) },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.elevatedCardElevation(
+                                defaultElevation = if (isSelected) 4.dp else 2.dp
                             )
-                        }
-                        val totalText = if (week.totalChange >= BigDecimal.ZERO)
-                            "+${formatMoney(week.totalChange, state.displayMultiplier)}" else formatMoney(week.totalChange, state.displayMultiplier)
-                        Text(
-                            totalText,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = if (isUp) FinancialColors.up else FinancialColors.down
-                        )
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    // Daily bars
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        week.days.forEach { day ->
-                            val barColor = when {
-                                day.totalChange > BigDecimal.ZERO -> FinancialColors.up
-                                day.totalChange < BigDecimal.ZERO -> FinancialColors.down
-                                else -> MaterialTheme.colorScheme.surfaceVariant
-                            }
+                        ) {
                             Column(
-                                modifier = Modifier.weight(1f),
+                                Modifier.padding(12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                val maxBarH = 40.dp
-                                val allChanges = week.days.map { it.totalChange.abs() }
-                                val maxAbs = allChanges.maxOrNull() ?: BigDecimal.ONE
-                                val barFraction = if (maxAbs > BigDecimal.ZERO)
-                                    day.totalChange.abs().toDouble() / maxAbs.toDouble() else 0.0
-                                val barH = (maxBarH * barFraction.toFloat()).coerceAtLeast(3.dp)
-
-                                Box(
-                                    modifier = Modifier.width(24.dp).height(maxBarH),
-                                    contentAlignment = Alignment.BottomCenter
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(16.dp)
-                                            .height(barH)
-                                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                            .background(barColor)
-                                    )
-                                }
-                                Spacer(Modifier.height(4.dp))
                                 Text(
-                                    "${day.date.monthNumber}.${day.date.dayOfMonth}",
-                                    fontSize = 9.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
+                                    week.weekLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isSelected)
+                                        FinancialColors.gold
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    "${week.startDate.monthNumber}.${week.startDate.dayOfMonth}-${week.endDate.monthNumber}.${week.endDate.dayOfMonth}",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    formatChangeAmountShort(week.totalChange, state.displayMultiplier),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = adaptiveAmountFont(week.totalChange, 15, state.displayMultiplier).sp,
+                                    color = if (week.totalChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                                        else if (isUp) FinancialColors.up else FinancialColors.down,
+                                    maxLines = 2,
+                                    softWrap = true
                                 )
                             }
                         }
                     }
-
-                    // Expanded daily detail
-                    AnimatedVisibility(
-                        visible = isExpanded,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        Column {
-                            Spacer(Modifier.height(8.dp))
-                            HorizontalDivider()
-                            Spacer(Modifier.height(8.dp))
-                            week.days.filter { it.totalChange != BigDecimal.ZERO }.forEach { day ->
-                                Row(
-                                    Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        "${day.date.monthNumber}.${day.date.dayOfMonth} ${dayOfWeekLabel(day.dayOfWeek)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    val dayText = if (day.totalChange >= BigDecimal.ZERO)
-                                        "+${formatMoney(day.totalChange, state.displayMultiplier)}" else formatMoney(day.totalChange, state.displayMultiplier)
-                                    Text(
-                                        dayText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (day.totalChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
-                                    )
-                                }
-                            }
-                        }
+                    if (row.size < 2) {
+                        Spacer(Modifier.weight(1f))
                     }
+                }
+            }
+        }
+
+        // Breakdown panel below grid (separated, like Day view)
+        if (state.selectedWeekIndex != null) {
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = FinancialColors.gold.copy(alpha = 0.2f))
+            Spacer(Modifier.height(16.dp))
+            WeekBreakdownPanel(state)
+        }
+    }
+}
+
+@Composable
+private fun WeekBreakdownPanel(state: EarningsUiState) {
+    val week = state.weekEarnings.getOrNull(state.selectedWeekIndex ?: -1) ?: return
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${week.weekLabel}  ${week.startDate.monthNumber}.${week.startDate.dayOfMonth}-${week.endDate.monthNumber}.${week.endDate.dayOfMonth}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                val weekTotal = state.weekBreakdown.fold(BigDecimal.ZERO) { acc, b -> acc + b.changeCNY }
+                if (weekTotal != BigDecimal.ZERO) {
+                    Text(
+                        formatChangeAmount(weekTotal, state.displayMultiplier),
+                        fontWeight = FontWeight.Bold,
+                        color = if (weekTotal >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            if (state.weekBreakdown.isEmpty()) {
+                Text(
+                    "本周暂无收益明细",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                state.weekBreakdown.forEach { item ->
+                    val isUp = item.changeCNY >= BigDecimal.ZERO
+                    val changeText = formatChangeAmount(item.changeCNY, state.displayMultiplier)
+
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            item.label,
+                            Modifier.width(48.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            changeText,
+                            Modifier.width(90.dp),
+                            fontWeight = FontWeight.Medium,
+                            color = if (isUp) FinancialColors.up else FinancialColors.down,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            softWrap = false
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(item.fraction)
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(
+                                        if (isUp) FinancialColors.up.copy(alpha = 0.5f)
+                                        else FinancialColors.down.copy(alpha = 0.5f)
+                                    )
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "${(item.fraction * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(32.dp)
+                        )
+                    }
+                }
+
+                val totalChange = state.weekBreakdown.fold(BigDecimal.ZERO) { acc, b -> acc + b.changeCNY }
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("合计", fontWeight = FontWeight.Bold)
+                    Text(
+                        formatChangeAmount(totalChange, state.displayMultiplier),
+                        fontWeight = FontWeight.Bold,
+                        color = if (totalChange >= BigDecimal.ZERO) FinancialColors.up
+                        else FinancialColors.down,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
         }
     }
 }
 
-private fun dayOfWeekLabel(dow: kotlinx.datetime.DayOfWeek): String = when (dow) {
-    kotlinx.datetime.DayOfWeek.MONDAY -> "周一"
-    kotlinx.datetime.DayOfWeek.TUESDAY -> "周二"
-    kotlinx.datetime.DayOfWeek.WEDNESDAY -> "周三"
-    kotlinx.datetime.DayOfWeek.THURSDAY -> "周四"
-    kotlinx.datetime.DayOfWeek.FRIDAY -> "周五"
-    kotlinx.datetime.DayOfWeek.SATURDAY -> "周六"
-    kotlinx.datetime.DayOfWeek.SUNDAY -> "周日"
-}
-
 // ===== Month View =====
 @Composable
-private fun MonthEarningsView(state: EarningsUiState) {
-    if (state.monthEarnings.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("暂无收益数据", style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun MonthEarningsView(state: EarningsUiState, viewModel: EarningsViewModel) {
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val monthNames = listOf("1月", "2月", "3月", "4月", "5月", "6月",
+        "7月", "8月", "9月", "10月", "11月", "12月")
+
+    // Compute year total for summary
+    val yearTotal = state.monthEarnings.fold(BigDecimal.ZERO) { acc, m -> acc + m.totalChange }
+
+    LazyColumn(
+        Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Year navigation
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "<",
+                    Modifier.clickable(onClick = { viewModel.changeYear(false) }).padding(8.dp),
+                    fontSize = 22.sp,
+                    color = if (state.selectedYear > state.earliestYear)
+                        MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                )
+                Text(
+                    "${state.selectedYear}年",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    ">",
+                    Modifier.clickable(onClick = { viewModel.changeYear(true) }).padding(8.dp),
+                    fontSize = 22.sp,
+                    color = if (state.selectedYear < today.year)
+                        MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                )
+            }
         }
-        return
-    }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            "${state.monthEarnings.first().year}年 月收益",
-            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(12.dp))
+        // Year total summary
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "年度总收益",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    formatChangeAmount(yearTotal, state.displayMultiplier),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = if (yearTotal == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                        else if (yearTotal >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
 
-        val monthNames = listOf("1月", "2月", "3月", "4月", "5月", "6月",
-            "7月", "8月", "9月", "10月", "11月", "12月")
+        // 4x3 month grid
+        item {
+            val rows = state.monthEarnings.chunked(4)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                rows.forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        row.forEach { month ->
+                            val isFuture = (state.selectedYear == today.year && month.month > today.monthNumber)
+                                || state.selectedYear > today.year
+                            val isSelected = state.selectedMonth == month.month
+                            val hasData = month.totalChange != BigDecimal.ZERO
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            itemsIndexed(state.monthEarnings) { _, month ->
-                val isUp = month.totalChange >= BigDecimal.ZERO
-                    ElevatedCard(
+                            val isUp = month.totalChange >= BigDecimal.ZERO
+                            val monthFontSize = if (hasData) adaptiveAmountFont(month.totalChange, 14, state.displayMultiplier) else 14
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .then(
+                                        if (isSelected) Modifier.border(
+                                            1.5.dp, FinancialColors.gold, RoundedCornerShape(12.dp)
+                                        ) else Modifier
+                                    )
+                                    .clickable { if (!isFuture) viewModel.selectMonth(month.month) }
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        monthNames[month.month - 1],
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        color = if (isSelected) FinancialColors.gold
+                                            else if (isFuture) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                            else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(Modifier.height(3.dp))
+                                    if (isFuture) {
+                                        Text(
+                                            "—",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                        )
+                                    } else if (!hasData) {
+                                        Text(
+                                            "0",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    } else {
+                                        Text(
+                                            formatChangeAmountShort(month.totalChange, state.displayMultiplier),
+                                            fontSize = monthFontSize.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isUp) FinancialColors.up else FinancialColors.down,
+                                            maxLines = 2,
+                                            softWrap = true
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        // Fill remaining columns with empty space
+                        repeat(4 - row.size) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        // Asset breakdown panel for selected month
+        if (state.selectedMonth != null) {
+            item {
+                ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
                     elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
                 ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            "${state.selectedMonth}月明细",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(12.dp))
+
+                        if (state.monthBreakdown.isEmpty()) {
                             Text(
-                                monthNames[month.month - 1],
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                "↑${month.upDays}  ↓${month.downDays}",
-                                style = MaterialTheme.typography.labelSmall,
+                                "该月暂无收益数据",
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        } else {
+                            val totalChange = state.monthBreakdown.fold(BigDecimal.ZERO) { acc, b -> acc + b.changeCNY }
+
+                            state.monthBreakdown.forEach { item ->
+                                val isUp = item.changeCNY >= BigDecimal.ZERO
+                                val changeText = formatChangeAmount(item.changeCNY, state.displayMultiplier)
+
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        item.label,
+                                        Modifier.width(48.dp),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        changeText,
+                                        Modifier.width(90.dp),
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isUp) FinancialColors.up else FinancialColors.down,
+                                        fontSize = 14.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        softWrap = false
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(item.fraction)
+                                                .height(6.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(
+                                                    if (isUp) FinancialColors.up.copy(alpha = 0.5f)
+                                                    else FinancialColors.down.copy(alpha = 0.5f)
+                                                )
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "${(item.fraction * 100).toInt()}%",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.width(32.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("合计", fontWeight = FontWeight.Bold)
+                                Text(
+                                    formatChangeAmount(totalChange, state.displayMultiplier),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (totalChange >= BigDecimal.ZERO) FinancialColors.up
+                                    else FinancialColors.down
+                                )
+                            }
                         }
-                        val totalText = if (month.totalChange >= BigDecimal.ZERO)
-                            "+${formatMoney(month.totalChange, state.displayMultiplier)}" else formatMoney(month.totalChange, state.displayMultiplier)
-                        Text(
-                            totalText,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = if (isUp) FinancialColors.up else FinancialColors.down
-                        )
                     }
                 }
             }
@@ -468,10 +857,13 @@ private fun YearEarningsView(state: EarningsUiState) {
                             Text("年度总收益", style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(4.dp))
-                            val totalText = if (year.totalChange >= BigDecimal.ZERO)
-                                "+${formatMoney(year.totalChange, state.displayMultiplier)}" else formatMoney(year.totalChange, state.displayMultiplier)
-                            Text(totalText, fontWeight = FontWeight.Bold,
-                                color = if (isUp) FinancialColors.up else FinancialColors.down)
+                            Text(
+                                formatChangeAmount(year.totalChange, state.displayMultiplier),
+                                fontWeight = FontWeight.Bold,
+                                color = if (year.totalChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                                    else if (isUp) FinancialColors.up else FinancialColors.down,
+                                maxLines = 1,
+                                softWrap = false)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("上涨天数", style = MaterialTheme.typography.labelSmall,
@@ -500,4 +892,27 @@ private fun YearEarningsView(state: EarningsUiState) {
 
 fun formatMoney(value: BigDecimal, multiplier: BigDecimal = BigDecimal.ONE): String {
     return com.financial.freedom.ui.common.FormatUtils.formatMoney(value, multiplier)
+}
+
+fun formatMoneyShort(value: BigDecimal, multiplier: BigDecimal = BigDecimal.ONE): String {
+    return com.financial.freedom.ui.common.FormatUtils.formatMoneyShort(value, multiplier)
+}
+
+/** Format change amount as absolute value (no +/- sign). Color indicates direction. */
+fun formatChangeAmount(value: BigDecimal, multiplier: BigDecimal = BigDecimal.ONE): String {
+    return formatMoney(value.abs(), multiplier)
+}
+
+fun formatChangeAmountShort(value: BigDecimal, multiplier: BigDecimal = BigDecimal.ONE): String {
+    return formatMoneyShort(value.abs(), multiplier)
+}
+
+/** Adaptive font size: shrink when the number string is long to avoid ellipsis. */
+fun adaptiveAmountFont(value: BigDecimal, baseSp: Int, multiplier: BigDecimal = BigDecimal.ONE): Int {
+    val display = formatChangeAmountShort(value, multiplier)
+    return when {
+        display.length > 9 -> (baseSp - 3).coerceAtLeast(10)
+        display.length > 7 -> (baseSp - 2).coerceAtLeast(10)
+        else -> baseSp
+    }
 }

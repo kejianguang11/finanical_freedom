@@ -133,7 +133,6 @@ fun DepositsPage(
                     BankGroupCard(
                         group = group,
                         isMatured = allMatured,
-                        isAlternate = index % 2 == 1,
                         onClick = { onBankClick(group.bank, if (allMatured) "matured" else "active") }
                     )
                     Spacer(Modifier.height(12.dp))
@@ -176,7 +175,7 @@ private fun HoldingListPage(
                 }
             } else {
                 itemsIndexed(items, key = { _, h -> itemKey(h) }) { index, h ->
-                    HoldingCard(h, isAlternate = index % 2 == 1, onClick = { onHoldingClick(h.id) })
+                    HoldingCard(h, onClick = { onHoldingClick(h.id) })
                     Spacer(Modifier.height(12.dp))
                 }
             }
@@ -217,7 +216,6 @@ private fun HoldingGroupListPage(
                     HoldingGroupCard(
                         group = group,
                         groupColor = group.sectorColor,
-                        isAlternate = index % 2 == 1,
                         onClick = { onHoldingClick(group.mainHoldingId) }
                     )
                     Spacer(Modifier.height(12.dp))
@@ -243,7 +241,6 @@ private fun HoldingGroupListPage(
 private fun HoldingGroupCard(
     group: HoldingGroupDisplay,
     groupColor: Color,
-    isAlternate: Boolean = false,
     onClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -256,9 +253,7 @@ private fun HoldingGroupCard(
             .animateContentSize(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isAlternate)
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            else MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
@@ -458,7 +453,7 @@ private fun BuyRecordItem(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
     ) {
@@ -536,7 +531,6 @@ private fun BuyRecordItem(
 fun BankGroupCard(
     group: BankGroupDisplay,
     isMatured: Boolean = false,
-    isAlternate: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     val bankColor = FinancialColors.BankPalette.getOrElse(group.colorIndex) { FinancialColors.deposit }
@@ -549,9 +543,7 @@ fun BankGroupCard(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isAlternate)
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f * cardAlpha)
-            else MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (allMatured) 2.dp else 3.dp)
     ) {

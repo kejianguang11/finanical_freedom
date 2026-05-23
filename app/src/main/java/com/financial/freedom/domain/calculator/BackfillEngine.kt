@@ -274,15 +274,22 @@ class BackfillEngine @Inject constructor(
                 depositContribution += principalCNY
             }
         }
-        // 买入交易成本计入 netInflow，避免加仓日资产突然增加导致虚假收益
-        // 注意：不用 holding.costDate，因为加仓后 costPrice/quantity 被更新为平均值，历史回溯会失真
+        // 买入交易成本计入 netInflow，同时按类型拆分，避免各分类变动包含成本基数
         val txs = transactionDao.getAllList(accountId).filter { it.date == date && it.type == "BUY" }
+        var stockBuyCost = BigDecimal.ZERO
+        var fundBuyCost = BigDecimal.ZERO
+        var goldBuyCost = BigDecimal.ZERO
         for (tx in txs) {
             val h = holdings.firstOrNull { it.id == tx.holdingId } ?: continue
             val rate = if (h.currency == "CNY") BigDecimal.ONE
             else getExchangeRate(h.currency, "CNY", date)
             val costCNY = tx.price.multiply(tx.quantity).add(tx.fee).multiply(rate).setScale(2, RoundingMode.HALF_UP)
             netInflow += costCNY
+            when (h.type) {
+                "STOCK" -> stockBuyCost += costCNY
+                "FUND" -> fundBuyCost += costCNY
+                "GOLD" -> goldBuyCost += costCNY
+            }
         }
 
         // 一次 setScale 避免双重舍入导致 dayChange 与 breakdown 之和不一致
@@ -306,19 +313,33 @@ class BackfillEngine @Inject constructor(
             netWorth = netWorth, cashBalance = cashBal
         )
 
-        // stock/fund/gold 各自独立舍入，deposit 由减法反推确保 Σbreakdown.changeCNY == dayChange
-        val stockChange = if (prevStockCNY != null) stockValue.subtract(prevStockCNY).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
-        val fundChange = if (prevFundCNY != null) fundValue.subtract(prevFundCNY).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
-        val goldChange = if (prevGoldCNY != null) goldValue.subtract(prevGoldCNY).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
-        // 存款变动 = dayChange - 其他分类变动，确保总和严格一致
-        val depositChangeExContribution = dayChange.subtract(stockChange).subtract(fundChange).subtract(goldChange)
+        // 存款变动使用直接公式（日利息），与持仓页保持一致
+        var directDepositChange = BigDecimal.ZERO
+        for (deposit in deposits) {
+            val rate = if (deposit.currency == "CNY") BigDecimal.ONE
+            else exchangeRates[deposit.currency] ?: BigDecimal.ONE
+            directDepositChange += deposit.principal.multiply(deposit.interestRate)
+                .divide(BigDecimal(365), 6, RoundingMode.HALF_UP)
+                .multiply(rate)
+        }
+        directDepositChange = directDepositChange.setScale(2, RoundingMode.HALF_UP)
 
-        val breakdowns = listOf(
-            DailyBreakdownItem(date = date, type = "DEPOSIT", valueCNY = depositValue, changeCNY = depositChangeExContribution, contribution = netInflow, accountId = accountId),
+        // stock/fund/gold 各自独立舍入，扣除当日买入成本避免成本基数计为收益
+        val stockChange = if (prevStockCNY != null) stockValue.subtract(prevStockCNY).subtract(stockBuyCost).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
+        val fundChange = if (prevFundCNY != null) fundValue.subtract(prevFundCNY).subtract(fundBuyCost).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
+        val goldChange = if (prevGoldCNY != null) goldValue.subtract(prevGoldCNY).subtract(goldBuyCost).setScale(2, RoundingMode.HALF_UP) else BigDecimal.ZERO
+
+        val fxResidual = dayChange.subtract(directDepositChange).subtract(stockChange).subtract(fundChange).subtract(goldChange)
+
+        val breakdowns = mutableListOf(
+            DailyBreakdownItem(date = date, type = "DEPOSIT", valueCNY = depositValue, changeCNY = directDepositChange, contribution = netInflow, accountId = accountId),
             DailyBreakdownItem(date = date, type = "STOCK", valueCNY = stockValue, changeCNY = stockChange, accountId = accountId),
             DailyBreakdownItem(date = date, type = "FUND", valueCNY = fundValue, changeCNY = fundChange, accountId = accountId),
             DailyBreakdownItem(date = date, type = "GOLD", valueCNY = goldValue, changeCNY = goldChange, accountId = accountId)
         )
+        if (fxResidual.abs() > BigDecimal.ZERO) {
+            breakdowns += DailyBreakdownItem(date = date, type = "FX", valueCNY = BigDecimal.ZERO, changeCNY = fxResidual, accountId = accountId)
+        }
 
         return Pair(summary, breakdowns)
     }
