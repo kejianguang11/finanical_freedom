@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -77,7 +78,8 @@ class HoldingDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DetailUiState())
     val uiState: StateFlow<DetailUiState> = _uiState.asStateFlow()
 
-    private var holding: Holding? = null
+    private var mainHolding: Holding? = null
+    private var allSymbolHoldings: List<Holding> = emptyList()
 
     init {
         viewModelScope.launch {
@@ -88,7 +90,7 @@ class HoldingDetailViewModel @Inject constructor(
         // multiplier 变化时重新格式化所有显示值（跳过初始发射）
         viewModelScope.launch {
             displaySettings.multiplierFlow.drop(1).collect { _ ->
-                val h = holding ?: return@collect
+                val h = mainHolding ?: return@collect
                 val accountId = accountManager.currentAccountId.value ?: return@collect
                 val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
                 renderWithCache(h, today, accountId)
@@ -100,41 +102,47 @@ class HoldingDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val accountId = accountManager.currentAccountId.value ?: return@launch
             val h = holdingDao.getById(holdingId, accountId) ?: return@launch
-            holding = h
+            mainHolding = h
+
+            // 查找所有同 symbol 的持仓（多笔买入后存在多条记录）
+            allSymbolHoldings = holdingDao.getAllList(accountId).filter { it.symbol == h.symbol }
 
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
             // 先用缓存数据立即渲染
             renderWithCache(h, today, accountId)
 
-            // 后台拉取最新价格 + 历史价格
-            try {
-                val result = priceService.fetchPrice(h.type, h.symbol, h.market, today)
-                if (result != null) {
-                    priceSnapshotDao.insert(
-                        PriceSnapshot(
-                            holdingId = h.id, date = result.date, unitPrice = result.price,
-                            currency = result.currency, accountId = accountId
-                        )
-                    )
-                    Log.d("DetailVM", "Live price fetched for ${h.symbol}: ${result.price}")
-                }
+            // 后台拉取最新价格 + 历史价格（IO 线程，不阻塞 UI）
+            withContext(Dispatchers.IO) {
+                for (holding in allSymbolHoldings) {
+                    try {
+                        val result = priceService.fetchPrice(holding.type, holding.symbol, holding.market, today)
+                        if (result != null) {
+                            priceSnapshotDao.insert(
+                                PriceSnapshot(
+                                    holdingId = holding.id, date = result.date, unitPrice = result.price,
+                                    currency = result.currency, accountId = accountId
+                                )
+                            )
+                            Log.d("DetailVM", "Live price fetched for ${holding.symbol}: ${result.price}")
+                        }
 
-                // 补齐历史价格数据（最近30天），确保走势图有数据
-                val thirtyDaysAgo = today.minus(30, DateTimeUnit.DAY)
-                val historyResults = priceService.fetchHistory(h.type, h.symbol, h.market, thirtyDaysAgo, today)
-                if (historyResults.isNotEmpty()) {
-                    val snapshots = historyResults.map { r ->
-                        PriceSnapshot(
-                            holdingId = h.id, date = r.date, unitPrice = r.price,
-                            currency = r.currency, accountId = accountId
-                        )
+                        val thirtyDaysAgo = today.minus(30, DateTimeUnit.DAY)
+                        val historyResults = priceService.fetchHistory(holding.type, holding.symbol, holding.market, thirtyDaysAgo, today)
+                        if (historyResults.isNotEmpty()) {
+                            val snapshots = historyResults.map { r ->
+                                PriceSnapshot(
+                                    holdingId = holding.id, date = r.date, unitPrice = r.price,
+                                    currency = r.currency, accountId = accountId
+                                )
+                            }
+                            priceSnapshotDao.insertAll(snapshots)
+                            Log.d("DetailVM", "Backfilled ${snapshots.size} history snapshots for ${holding.symbol}")
+                        }
+                    } catch (e: Exception) {
+                        Log.w("DetailVM", "Failed to fetch price data for ${holding.symbol}", e)
                     }
-                    priceSnapshotDao.insertAll(snapshots)
-                    Log.d("DetailVM", "Backfilled ${snapshots.size} history snapshots for ${h.symbol}")
                 }
-            } catch (e: Exception) {
-                Log.w("DetailVM", "Failed to fetch price data for ${h.symbol}", e)
             }
 
             val now = System.currentTimeMillis()
@@ -151,20 +159,32 @@ class HoldingDetailViewModel @Inject constructor(
         accountId: Long,
         updateTime: String? = null
     ) {
-        val todaySnapshot = priceSnapshotDao.getByHoldingAndDate(h.id, today, accountId)
-        val yesterdayDate = today.minus(1, DateTimeUnit.DAY)
-        val yesterdaySnapshot = priceSnapshotDao.getByHoldingAndDate(h.id, yesterdayDate, accountId)
-
-        val currentPrice = todaySnapshot?.unitPrice
-            ?: priceSnapshotDao.getLatest(h.id, accountId)?.unitPrice
-            ?: h.costPrice
-
-        val prevPrice = yesterdaySnapshot?.unitPrice
-            ?: priceSnapshotDao.getLatestBefore(h.id, today, accountId)?.unitPrice
-            ?: currentPrice
-
+        val group = allSymbolHoldings
         val rate = if (h.currency == "CNY") BigDecimal.ONE
             else exchangeRateRepository.getRate(h.currency, "CNY", today) ?: BigDecimal.ONE
+
+        // 遍历组内所有持仓找最新价格快照
+        var latestSnapshot: PriceSnapshot? = null
+        for (holding in group) {
+            val todaySnap = priceSnapshotDao.getByHoldingAndDate(holding.id, today, accountId)
+            val snap = todaySnap ?: priceSnapshotDao.getLatest(holding.id, accountId)
+            if (snap != null && (latestSnapshot == null || snap.date > latestSnapshot!!.date)) {
+                latestSnapshot = snap
+            }
+        }
+        val currentPrice = latestSnapshot?.unitPrice ?: h.costPrice
+
+        // 遍历组内所有持仓找昨日/最近历史价格
+        val yesterdayDate = today.minus(1, DateTimeUnit.DAY)
+        var prevSnapshot: PriceSnapshot? = null
+        for (holding in group) {
+            val snap = priceSnapshotDao.getByHoldingAndDate(holding.id, yesterdayDate, accountId)
+                ?: priceSnapshotDao.getLatestBefore(holding.id, today, accountId)
+            if (snap != null && (prevSnapshot == null || snap.date > prevSnapshot!!.date)) {
+                prevSnapshot = snap
+            }
+        }
+        val prevPrice = prevSnapshot?.unitPrice ?: currentPrice
 
         val priceDiff = currentPrice.subtract(prevPrice)
         val priceChg = if (prevPrice > BigDecimal.ZERO) {
@@ -175,22 +195,49 @@ class HoldingDetailViewModel @Inject constructor(
                 .multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
         } else BigDecimal.ZERO
 
-        val todayChg = priceDiff.multiply(h.quantity).multiply(rate).setScale(2, RoundingMode.HALF_UP)
-        val todayChgPct = priceChgPct
+        // 聚合所有同 symbol 持仓
+        val totalQuantity = group.sumOf { it.quantity }
+        val totalCost = group.sumOf { it.quantity.multiply(it.costPrice) }
+        val totalCostCNY = totalCost.multiply(rate).setScale(2, RoundingMode.HALF_UP)
 
+        val totalMarketValue = currentPrice.multiply(totalQuantity).multiply(rate).setScale(2, RoundingMode.HALF_UP)
+        val totalPnL = totalMarketValue.subtract(totalCostCNY)
+        val totalPnLPct = if (totalCostCNY > BigDecimal.ZERO)
+            totalPnL.divide(totalCostCNY, 4, RoundingMode.HALF_UP).multiply(BigDecimal(100))
+        else BigDecimal.ZERO
+
+        val todayChg = priceDiff.multiply(totalQuantity).multiply(rate).setScale(2, RoundingMode.HALF_UP)
+        val todayChgPct = priceChgPct
         val isUp = todayChg >= BigDecimal.ZERO
 
-        val pnL = valuationCalculator.calcHoldingPnL(h, currentPrice, rate)
-        val pnlPct = valuationCalculator.calcHoldingPnLPct(h, currentPrice, rate)
-        val marketValue = valuationCalculator.calcHoldingValueCNY(h, currentPrice, rate)
-        val costTotal = h.quantity.multiply(h.costPrice).multiply(rate)
+        // 加权平均成本
+        val avgCost = if (totalQuantity > BigDecimal.ZERO)
+            totalCost.divide(totalQuantity, 4, RoundingMode.HALF_UP)
+        else h.costPrice
 
-        // 使用 first() 而非 collect() — Room Flow 永不 complete，collect 会永久阻塞
-        val txns = transactionDao.getByHolding(h.id, accountId).first()
+        // 合并所有持仓的交易记录
+        val allTxns = mutableListOf<Transaction>()
+        for (holding in group) {
+            try {
+                val txns = transactionDao.getByHolding(holding.id, accountId).first()
+                allTxns.addAll(txns)
+            } catch (_: Exception) { }
+        }
+        allTxns.sortByDescending { it.date }
 
-        val history = priceSnapshotDao.getByHoldingAndDateRange(
-            h.id, today.minus(30, DateTimeUnit.DAY), today, accountId
-        ).first()
+        // 合并所有持仓的价格历史，按日期去重取最新
+        val allSnapshots = mutableListOf<PriceSnapshot>()
+        for (holding in group) {
+            try {
+                val snaps = priceSnapshotDao.getByHoldingAndDateRange(
+                    holding.id, today.minus(30, DateTimeUnit.DAY), today, accountId
+                ).first()
+                allSnapshots.addAll(snaps)
+            } catch (_: Exception) { }
+        }
+        val history = allSnapshots.groupBy { it.date }.map { (_, snaps) ->
+            snaps.maxByOrNull { it.date }!!
+        }.sortedBy { it.date }
 
         _uiState.value = DetailUiState(
             name = h.name,
@@ -203,13 +250,13 @@ class HoldingDetailViewModel @Inject constructor(
             todayChange = formatMoney(todayChg.abs()),
             todayChangePct = "${todayChgPct.abs()}%",
             isUp = isUp,
-            totalPnL = formatMoney(pnL.abs()),
-            totalPnLPct = "${pnlPct.abs()}%",
-            quantity = "${h.quantity}",
-            costPrice = formatMoney(h.costPrice.multiply(rate)),
-            totalCost = formatMoney(costTotal),
-            marketValue = formatMoney(marketValue),
-            transactions = txns,
+            totalPnL = formatMoney(totalPnL.abs()),
+            totalPnLPct = "${totalPnLPct.abs()}%",
+            quantity = "${totalQuantity}",
+            costPrice = formatMoney(avgCost.multiply(rate)),
+            totalCost = formatMoney(totalCostCNY),
+            marketValue = formatMoney(totalMarketValue),
+            transactions = allTxns,
             priceHistory = history,
             lastUpdateTime = updateTime
         )
@@ -230,7 +277,7 @@ class HoldingDetailViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                val h = holding ?: return@launch
+                val h = mainHolding ?: return@launch
                 val oldQty = h.quantity
                 val oldCost = h.costPrice
                 val newQty = oldQty.add(tradeQty)
@@ -239,7 +286,7 @@ class HoldingDetailViewModel @Inject constructor(
 
                 val updated = h.copy(quantity = newQty, costPrice = newAvgCost)
                 holdingDao.update(updated)
-                holding = updated
+                mainHolding = updated
                 transactionDao.insert(
                     Transaction(
                         holdingId = h.id, accountId = h.accountId,
@@ -278,7 +325,7 @@ class HoldingDetailViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                val h = holding ?: return@launch
+                val h = mainHolding ?: return@launch
                 val oldQty = h.quantity
                 val newQty = oldQty.subtract(tradeQty)
                 val isClosed = newQty <= BigDecimal.ZERO
@@ -290,7 +337,7 @@ class HoldingDetailViewModel @Inject constructor(
                 }
                 holdingDao.update(updatedHolding)
                 if (isClosed) {
-                    holding = updatedHolding
+                    mainHolding = updatedHolding
                 }
 
                 val realizedPnL = tradePrice.subtract(h.costPrice).multiply(tradeQty).setScale(2, RoundingMode.HALF_UP)
@@ -323,15 +370,18 @@ class HoldingDetailViewModel @Inject constructor(
     }
 
     private suspend fun hold_refresh() {
-        val h = holding ?: return
+        val h = mainHolding ?: return
         val accountId = h.accountId
+        // 重新加载所有同 symbol 持仓
+        allSymbolHoldings = holdingDao.getAllList(accountId).filter { it.symbol == h.symbol }
+        mainHolding = allSymbolHoldings.firstOrNull { it.id == h.id } ?: allSymbolHoldings.firstOrNull() ?: return
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-        renderWithCache(h, today, accountId)
+        renderWithCache(mainHolding!!, today, accountId)
     }
 
     fun deleteHolding(onDeleted: () -> Unit) {
         viewModelScope.launch {
-            val h = holding ?: return@launch
+            val h = mainHolding ?: return@launch
             val costDate = h.costDate
             val accountId = h.accountId
             holdingDao.delete(h)
@@ -346,14 +396,25 @@ class HoldingDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val accountId = accountManager.currentAccountId.value ?: return@launch
             _uiState.value = _uiState.value.copy(selectedRange = index)
-            val h = holding ?: return@launch
+            val h = mainHolding ?: return@launch
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
             val days = when (index) {
                 0 -> 30; 1 -> 90; 2 -> 365; else -> 30
             }
-            val history = priceSnapshotDao.getByHoldingAndDateRange(
-                h.id, today.minus(days, DateTimeUnit.DAY), today, accountId
-            ).first()
+            val startDate = today.minus(days, DateTimeUnit.DAY)
+            // 聚合所有同 symbol 持仓的价格历史
+            val allSnapshots = mutableListOf<PriceSnapshot>()
+            for (holding in allSymbolHoldings) {
+                try {
+                    val snaps = priceSnapshotDao.getByHoldingAndDateRange(
+                        holding.id, startDate, today, accountId
+                    ).first()
+                    allSnapshots.addAll(snaps)
+                } catch (_: Exception) { }
+            }
+            val history = allSnapshots.groupBy { it.date }.map { (_, snaps) ->
+                snaps.maxByOrNull { it.date }!!
+            }.sortedBy { it.date }
             _uiState.value = _uiState.value.copy(priceHistory = history)
         }
     }

@@ -218,7 +218,7 @@ class BackfillEngine @Inject constructor(
         prevGoldCNY: BigDecimal?,
         accountId: Long
     ): Pair<DailySummary, List<DailyBreakdownItem>> {
-        val deposits = depositDao.getActiveList(accountId)
+        val deposits = depositDao.getAllList(accountId).filter { it.startDate <= date && date <= it.maturityDate }
         val holdings = holdingDao.getAllList(accountId)
 
         val exchangeRates = mutableMapOf<String, BigDecimal>()
