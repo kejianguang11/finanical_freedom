@@ -947,10 +947,12 @@ private fun YearEarningsView(state: EarningsUiState, onSelectMode: (YearViewMode
                             val endValue = year.yearEndTotalValue
                             val yoyChange = year.yearOverYearChange
                             val yoyPct = year.yearOverYearChangePct
+                            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                            val isCurrentYear = year.year == today.year
 
                             if (endValue != null) {
                                 Text(
-                                    "年末总资产",
+                                    if (isCurrentYear) "当前总资产" else "年末总资产",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
