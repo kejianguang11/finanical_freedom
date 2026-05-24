@@ -374,6 +374,7 @@ private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewMode
         }
 
         // 2-column week grid
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             weekRows.forEachIndexed { rowIdx, row ->
                 Row(
@@ -384,21 +385,25 @@ private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewMode
                         val weekIdx = rowIdx * 2 + colIdx
                         val isSelected = state.selectedWeekIndex == weekIdx
                         val isUp = week.totalChange >= BigDecimal.ZERO
+                        val isFuture = week.startDate > today
 
                         ElevatedCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .then(
                                     if (isSelected) Modifier.border(1.5.dp, FinancialColors.gold, RoundedCornerShape(14.dp))
+                                    else if (isFuture) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
                                     else Modifier
                                 )
-                                .clickable { viewModel.selectWeek(weekIdx) },
+                                .clickable(enabled = !isFuture) { viewModel.selectWeek(weekIdx) },
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.elevatedCardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
+                                containerColor = if (isFuture)
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                                else MaterialTheme.colorScheme.surface
                             ),
                             elevation = CardDefaults.elevatedCardElevation(
-                                defaultElevation = if (isSelected) 4.dp else 2.dp
+                                defaultElevation = if (isSelected) 4.dp else if (isFuture) 0.dp else 2.dp
                             )
                         ) {
                             Column(
@@ -411,24 +416,35 @@ private fun WeekEarningsView(state: EarningsUiState, viewModel: EarningsViewMode
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isSelected)
                                         FinancialColors.gold
+                                    else if (isFuture)
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     "${week.startDate.monthNumber}.${week.startDate.dayOfMonth}-${week.endDate.monthNumber}.${week.endDate.dayOfMonth}",
                                     fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isFuture) 0.3f else 0.7f)
                                 )
                                 Spacer(Modifier.height(6.dp))
-                                Text(
-                                    formatChangeAmountShort(week.totalChange, state.displayMultiplier),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = adaptiveAmountFont(week.totalChange, 15, state.displayMultiplier).sp,
-                                    color = if (week.totalChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
-                                        else if (isUp) FinancialColors.up else FinancialColors.down,
-                                    maxLines = 2,
-                                    softWrap = true
-                                )
+                                if (isFuture) {
+                                    Text(
+                                        "—",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                                    )
+                                } else {
+                                    Text(
+                                        formatChangeAmountShort(week.totalChange, state.displayMultiplier),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = adaptiveAmountFont(week.totalChange, 15, state.displayMultiplier).sp,
+                                        color = if (week.totalChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                                            else if (isUp) FinancialColors.up else FinancialColors.down,
+                                        maxLines = 2,
+                                        softWrap = true
+                                    )
+                                }
                             }
                         }
                     }

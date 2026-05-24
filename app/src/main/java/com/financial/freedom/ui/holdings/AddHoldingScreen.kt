@@ -311,8 +311,8 @@ fun AddHoldingScreen(
                     viewModel.save(
                         holding,
                         deductFromCash = deductFromCash,
-                        onSuccess = {
-                            Toast.makeText(context, "$typeLabel 已保存", Toast.LENGTH_SHORT).show()
+                        onSuccess = { savedAmount, totalAssets ->
+                            Toast.makeText(context, "已存入 ¥$savedAmount · 总资产 ¥$totalAssets", Toast.LENGTH_SHORT).show()
                             onSaved()
                         },
                         onError = { msg ->

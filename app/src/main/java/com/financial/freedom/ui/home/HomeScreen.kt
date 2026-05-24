@@ -8,8 +8,15 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.outlined.EnergySavingsLeaf
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,29 +53,34 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.financial.freedom.data.local.entity.DailySummary
+import com.financial.freedom.ui.components.TooltipType
 import com.financial.freedom.ui.components.TrendChart
 import com.financial.freedom.ui.theme.FinancialColors
 import java.math.BigDecimal
 import java.math.RoundingMode
-import kotlinx.datetime.LocalDate
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onScrollToPage: (Int) -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onAddDeposit: () -> Unit = {},
+    onAddHolding: (String) -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     var showPrecise by remember { mutableStateOf(false) }
@@ -94,164 +106,219 @@ fun HomeScreen(
         onRefresh = { viewModel.refresh() },
         modifier = Modifier.fillMaxSize()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(top = 24.dp, bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(Modifier.height(16.dp))
-
-            // ===== L0: 总资产 =====
-            Text(
-                "总 资 产",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Normal,
-                letterSpacing = 8.sp
+        if (state.isEmpty) {
+            EmptyHomeState(
+                onAddDeposit = onAddDeposit,
+                onAddHolding = onAddHolding
             )
-            Spacer(Modifier.height(8.dp))
-
-            MilestoneGlowText(
-                netWorthFormatted = if (showPrecise) state.netWorth
-                    else formatNetWorthShort(state.netWorth),
-                targetValue = state.netWorthRaw,
-                isCelebrating = state.crossedMilestone != null,
-                onCelebrationComplete = { viewModel.dismissMilestone() }
-            )
-
-            // All-time high banner
-            if (state.isAllTimeHigh) {
-                Spacer(Modifier.height(6.dp))
-                AllTimeHighBanner(
-                    onDismiss = { viewModel.dismissAllTimeHigh() }
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // ===== L1: 今日收益 Pill 徽章 =====
-            val gainBg = if (state.isUp) FinancialColors.upBg else FinancialColors.downBg
-            val gainText = if (state.isUp) FinancialColors.up else FinancialColors.down
-
-            Box(
+        } else {
+            Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(gainBg)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 24.dp, bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "今日 ${state.todayChange}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = gainText
-                    )
-                    Text(
-                        text = state.todayChangePct,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = gainText.copy(alpha = 0.8f)
+                Spacer(Modifier.height(16.dp))
+
+                // ===== L0: 总资产 =====
+                Text(
+                    "总 资 产",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 8.sp
+                )
+                Spacer(Modifier.height(8.dp))
+
+                MilestoneGlowText(
+                    targetValue = state.netWorthRaw,
+                    isCelebrating = state.crossedMilestone != null,
+                    isUp = state.isUp,
+                    onCelebrationComplete = { viewModel.dismissMilestone() }
+                )
+
+                // All-time high banner
+                if (state.isAllTimeHigh) {
+                    Spacer(Modifier.height(6.dp))
+                    AllTimeHighBanner(
+                        onDismiss = { viewModel.dismissAllTimeHigh() }
                     )
                 }
-            }
 
-            if (state.lastUpdateTime != null) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "更新于 ${state.lastUpdateTime}",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-            }
+                Spacer(Modifier.height(12.dp))
 
-            Spacer(Modifier.height(24.dp))
+                // ===== L1: 今日收益 Pill 徽章 =====
+                val gainBg = if (state.isUp) FinancialColors.upBg else FinancialColors.downBg
+                val gainText = if (state.isUp) FinancialColors.up else FinancialColors.down
 
-            // ===== 资产配置占比条 =====
-            val investmentValue = computeTotalValueRaw(state.stockValue, state.fundValue, state.goldValue)
-            val depositValue = parseMoneyValue(state.depositValue)
-            val cashValue = parseMoneyValue(state.cashBalance)
-            val receivableValue = parseMoneyValue(state.receivablesTotal)
-            val totalAllocation = listOfNotNull(investmentValue, depositValue, cashValue, receivableValue)
-                .fold(BigDecimal.ZERO) { acc, v -> acc.add(v) }
+                // Gold pulse glow on positive earnings — subtle breathing border
+                val goldPulseAlpha = if (state.isUp) {
+                    val pulseTransition = rememberInfiniteTransition(label = "goldPulse")
+                    val pulse by pulseTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1500, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "pulse"
+                    )
+                    (0.06f * sin(pulse * PI).toFloat()).coerceIn(0f, 0.08f)
+                } else 0f
 
-            if (totalAllocation > BigDecimal.ZERO) {
-                AllocationBar(
-                    items = listOfNotNull(
-                        allocationItem("投资", investmentValue, totalAllocation, FinancialColors.gold),
-                        allocationItem("存款", depositValue, totalAllocation, FinancialColors.deposit),
-                        allocationItem("现金", cashValue, totalAllocation, FinancialColors.cash),
-                        allocationItem("应收", receivableValue, totalAllocation, FinancialColors.receivable)
-                    ).sortedByDescending { it.value }
-                )
+                Box(
+                    modifier = Modifier
+                        .border(
+                            width = if (goldPulseAlpha > 0.001f) 1.5.dp else 0.dp,
+                            color = FinancialColors.gold.copy(alpha = goldPulseAlpha),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(gainBg)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "今日 ${state.todayChange}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = gainText
+                        )
+                        Text(
+                            text = state.todayChangePct,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = gainText.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+
+                // Streak badge: consecutive positive days
+                if (state.consecutiveUpDays >= 2) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = null,
+                            tint = FinancialColors.gold,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            "连涨 ${state.consecutiveUpDays} 天",
+                            fontSize = 11.sp,
+                            color = FinancialColors.gold
+                        )
+                    }
+                }
+
+                // Month-over-month comparison
+                if (state.monthOverMonthChange.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    val momIsUp = !state.monthOverMonthChange.startsWith("-")
+                    Text(
+                        "较上月 ${state.monthOverMonthChange} (${state.monthOverMonthPct})",
+                        fontSize = 12.sp,
+                        color = if (momIsUp) FinancialColors.up else FinancialColors.down
+                    )
+                }
+
+                if (state.lastUpdateTime != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "更新于 ${state.lastUpdateTime}",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // ===== 资产配置占比条 =====
+                val investmentValue = computeTotalValueRaw(state.stockValue, state.fundValue, state.goldValue)
+                val depositValue = parseMoneyValue(state.depositValue)
+                val cashValue = parseMoneyValue(state.cashBalance)
+                val receivableValue = parseMoneyValue(state.receivablesTotal)
+                val totalAllocation = listOfNotNull(investmentValue, depositValue, cashValue, receivableValue)
+                    .fold(BigDecimal.ZERO) { acc, v -> acc.add(v) }
+
+                if (totalAllocation > BigDecimal.ZERO) {
+                    AllocationBar(
+                        items = listOfNotNull(
+                            allocationItem("投资", investmentValue, totalAllocation, FinancialColors.gold),
+                            allocationItem("存款", depositValue, totalAllocation, FinancialColors.deposit),
+                            allocationItem("现金", cashValue, totalAllocation, FinancialColors.cash),
+                            allocationItem("应收", receivableValue, totalAllocation, FinancialColors.receivable)
+                        ).sortedByDescending { it.value }
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+
+                // ===== L3: 2×2 资产网格 =====
+                val investmentChange = computeTotalChange(state.stockChange, state.fundChange, state.goldChange)
+                val creditNet = computeCreditNet(state.receivablesTotal, state.debtsTotal)
+
+                // Row 1: 投资 + 存款
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CompactAssetCard(
+                        label = "投资",
+                        totalValue = formatAllocationValue(investmentValue),
+                        todayChange = investmentChange,
+                        accentColor = FinancialColors.gold,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onScrollToPage(1) }
+                    )
+                    CompactAssetCard(
+                        label = "存款",
+                        totalValue = formatAllocationValue(depositValue),
+                        todayChange = state.depositChange,
+                        accentColor = FinancialColors.deposit,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onScrollToPage(4) }
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                // Row 2: 现金 + 信用
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CompactAssetCard(
+                        label = "现金",
+                        totalValue = formatAllocationValue(cashValue),
+                        todayChange = null,
+                        accentColor = FinancialColors.cash,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onScrollToPage(5) }
+                    )
+                    CompactAssetCard(
+                        label = "信用",
+                        totalValue = creditNet,
+                        todayChange = null,
+                        accentColor = FinancialColors.receivable,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onScrollToPage(6) }
+                    )
+                }
+
                 Spacer(Modifier.height(20.dp))
-            }
 
-            // ===== L3: 2×2 资产网格 =====
-            val investmentChange = computeTotalChange(state.stockChange, state.fundChange, state.goldChange)
-            val creditNet = computeCreditNet(state.receivablesTotal, state.debtsTotal)
-
-            // Row 1: 投资 + 存款
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                CompactAssetCard(
-                    label = "投资",
-                    totalValue = formatAllocationValue(investmentValue),
-                    todayChange = investmentChange,
-                    accentColor = FinancialColors.gold,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onScrollToPage(1) }
-                )
-                CompactAssetCard(
-                    label = "存款",
-                    totalValue = formatAllocationValue(depositValue),
-                    todayChange = state.depositChange,
-                    accentColor = FinancialColors.deposit,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onScrollToPage(4) }
+                // ===== L4: 资产走势图（放最下面） =====
+                NetWorthTrendCard(
+                    trendData = state.trendData,
+                    selectedRange = state.selectedTrendRange,
+                    onSelectRange = { viewModel.selectTrendRange(it) },
+                    multiplier = state.displayMultiplier
                 )
             }
-
-            Spacer(Modifier.height(10.dp))
-
-            // Row 2: 现金 + 信用
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                CompactAssetCard(
-                    label = "现金",
-                    totalValue = formatAllocationValue(cashValue),
-                    todayChange = null,
-                    accentColor = FinancialColors.cash,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onScrollToPage(5) }
-                )
-                CompactAssetCard(
-                    label = "信用",
-                    totalValue = creditNet,
-                    todayChange = null,
-                    accentColor = FinancialColors.receivable,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onScrollToPage(6) }
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // ===== L4: 资产走势图（放最下面） =====
-            NetWorthTrendCard(
-                trendData = state.trendData,
-                investmentBreakdown = state.investmentBreakdownMap,
-                selectedRange = state.selectedTrendRange,
-                onSelectRange = { viewModel.selectTrendRange(it) },
-                multiplier = state.displayMultiplier
-            )
         }
     }
 }
@@ -401,8 +468,8 @@ private fun CompactAssetCard(
                     Spacer(Modifier.height(2.dp))
                     val changeVal = parseMoneyValue(todayChange) ?: BigDecimal.ZERO
                     val isZero = changeVal == BigDecimal.ZERO
-                    val displayAmount = if (changeVal > BigDecimal.ZERO) "+${formatMoneyShort(changeVal)}"
-                        else formatMoneyShort(changeVal)
+                    val displayAmount = if (changeVal > BigDecimal.ZERO) "+${formatMoney(changeVal)}"
+                        else formatMoney(changeVal)
                     Text(
                         if (isZero) "" else "今日 $displayAmount",
                         fontSize = 13.sp,
@@ -438,7 +505,7 @@ private fun computeTotalValue(vararg values: String): String {
 private fun computeTotalChange(vararg changes: String): String {
     val sum = changes.mapNotNull { parseMoneyValue(it) }
         .fold(BigDecimal.ZERO) { acc, v -> acc.add(v) }
-    return formatMoneyShort(sum)
+    return formatMoney(sum)
 }
 
 private fun computeCreditNet(receivables: String, debts: String): String {
@@ -456,36 +523,50 @@ private fun parseMoneyValue(s: String): BigDecimal? {
     return com.financial.freedom.ui.common.FormatUtils.parseMoneyValue(s)
 }
 
+private fun formatMoney(value: BigDecimal): String {
+    return com.financial.freedom.ui.common.FormatUtils.formatMoney(value)
+}
+
 private fun formatMoneyShort(value: BigDecimal): String {
     return com.financial.freedom.ui.common.FormatUtils.formatMoneyShort(value)
 }
 
 private fun formatNetWorthShort(raw: String): String {
     val value = parseMoneyValue(raw) ?: return raw
-    val abs = value.abs().setScale(2, RoundingMode.HALF_UP)
+    val abs = value.abs().setScale(0, RoundingMode.HALF_UP)
     val intPart = abs.toBigInteger().toString()
     val formattedInt = intPart.reversed().chunked(3).joinToString(",").reversed()
-    val decimal = abs.subtract(BigDecimal(abs.toBigInteger())).toPlainString().removePrefix("0")
-    val full = if (decimal.isNotEmpty() && decimal != ".00") "$formattedInt$decimal" else formattedInt
-    return if (value < BigDecimal.ZERO) "-¥$full" else "¥$full"
+    return if (value < BigDecimal.ZERO) "-¥$formattedInt" else "¥$formattedInt"
 }
 
 // ===== Dopamine-hit Composables =====
 
 @Composable
 private fun MilestoneGlowText(
-    netWorthFormatted: String,
     targetValue: BigDecimal,
     isCelebrating: Boolean,
+    isUp: Boolean,
     onCelebrationComplete: () -> Unit
 ) {
     val targetFloat = targetValue.toFloat()
     val animatedValue by animateFloatAsState(
         targetValue = targetFloat,
-        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
         label = "netWorthCountUp"
     )
 
+    // Spring settle scale effect when animation completes
+    val animationFinished = abs(animatedValue - targetFloat) < 0.5f
+    val settleScale by animateFloatAsState(
+        targetValue = if (animationFinished) 1.0f else 1.02f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 300f),
+        label = "settleScale"
+    )
+
+    // Count-up display: format the animated value as integer with commas
+    val displayText = "¥" + String.format("%,d", animatedValue.toLong())
+
+    // Gold shimmer on positive day change (not just milestone)
     val infiniteTransition = rememberInfiniteTransition(label = "glow")
     val shimmerProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -502,13 +583,17 @@ private fun MilestoneGlowText(
     val baseColor = if (isCelebrating) FinancialColors.gold else MaterialTheme.colorScheme.onSurface
     val glowAlpha = if (isCelebrating) {
         (0.15f + 0.25f * sin(shimmerProgress * 2 * PI).toFloat()).coerceIn(0f, 0.4f)
+    } else if (isUp) {
+        // Subtle positive-day shimmer: gentle pulse on first load
+        (0.03f + 0.05f * sin(shimmerProgress * 1.5f * PI).toFloat()).coerceIn(0f, 0.08f)
     } else 0f
 
     Box(
         modifier = Modifier
             .padding(horizontal = 16.dp)
+            .scale(settleScale)
             .background(
-                brush = if (isCelebrating) Brush.horizontalGradient(
+                brush = if (isCelebrating || (isUp && !animationFinished)) Brush.horizontalGradient(
                     colors = listOf(
                         Color.Transparent,
                         FinancialColors.gold.copy(alpha = glowAlpha),
@@ -520,7 +605,7 @@ private fun MilestoneGlowText(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = netWorthFormatted,
+            text = displayText,
             fontSize = 36.sp,
             fontFamily = FontFamily.Serif,
             fontWeight = FontWeight.Bold,
@@ -598,28 +683,22 @@ private fun AutoDismiss(
 @Composable
 private fun NetWorthTrendCard(
     trendData: List<DailySummary>,
-    investmentBreakdown: Map<LocalDate, BigDecimal>,
     selectedRange: TrendRange,
     onSelectRange: (TrendRange) -> Unit,
     multiplier: BigDecimal = BigDecimal.ONE
 ) {
     if (trendData.isEmpty()) return
 
-    var showInvestment by remember { mutableStateOf(false) }
+    var showTotalAssets by remember { mutableStateOf(false) }
 
-    val netWorthData = remember(trendData) {
-        trendData.map { it.copy(totalValueCNY = it.netWorth) }
+    // 每日收益折线：用 dayChange 而非净值，避免买入资产时成本基数造成跳变
+    val dailyEarningsData = remember(trendData) {
+        trendData.map { it.copy(totalValueCNY = it.dayChange) }
     }
 
-    val investmentData = remember(investmentBreakdown) {
-        investmentBreakdown.map { (date, value) ->
-            DailySummary(
-                date = date,
-                totalValueCNY = value,
-                dayChange = BigDecimal.ZERO,
-                dayChangePct = BigDecimal.ZERO
-            )
-        }.sortedBy { it.date }
+    // 总资产折线：用 netWorth（含现金+应收-负债），而非 totalValueCNY（仅投资+存款）
+    val totalAssetsData = remember(trendData) {
+        trendData.map { it.copy(totalValueCNY = it.netWorth) }
     }
 
     ElevatedCard(
@@ -676,7 +755,7 @@ private fun NetWorthTrendCard(
 
             Spacer(Modifier.height(8.dp))
 
-            // View toggle: 净值 / 投资收益
+            // View toggle: 收益 / 总资产
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start
@@ -691,17 +770,17 @@ private fun NetWorthTrendCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (!showInvestment) MaterialTheme.colorScheme.surface
+                                if (!showTotalAssets) MaterialTheme.colorScheme.surface
                                 else Color.Transparent
                             )
-                            .clickable { showInvestment = false }
+                            .clickable { showTotalAssets = false }
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            "净值",
+                            "收益",
                             fontSize = 12.sp,
-                            fontWeight = if (!showInvestment) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (!showInvestment) MaterialTheme.colorScheme.onSurface
+                            fontWeight = if (!showTotalAssets) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (!showTotalAssets) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -709,17 +788,17 @@ private fun NetWorthTrendCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (showInvestment) MaterialTheme.colorScheme.surface
+                                if (showTotalAssets) MaterialTheme.colorScheme.surface
                                 else Color.Transparent
                             )
-                            .clickable { showInvestment = true }
+                            .clickable { showTotalAssets = true }
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            "投资收益",
+                            "总资产",
                             fontSize = 12.sp,
-                            fontWeight = if (showInvestment) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (showInvestment) MaterialTheme.colorScheme.onSurface
+                            fontWeight = if (showTotalAssets) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (showTotalAssets) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -729,10 +808,174 @@ private fun NetWorthTrendCard(
             Spacer(Modifier.height(12.dp))
 
             TrendChart(
-                data = if (showInvestment) investmentData else netWorthData,
+                data = if (showTotalAssets) totalAssetsData else dailyEarningsData,
                 modifier = Modifier.fillMaxWidth().height(220.dp),
-                multiplier = multiplier
+                multiplier = multiplier,
+                tooltipType = if (showTotalAssets) TooltipType.NET_WORTH else TooltipType.EARNINGS
             )
         }
+    }
+}
+
+// ===== Empty Home State =====
+
+@Composable
+private fun EmptyHomeState(
+    onAddDeposit: () -> Unit,
+    onAddHolding: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(top = 80.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(40.dp))
+
+        // Seed icon — representing growth
+        Icon(
+            imageVector = Icons.Outlined.EnergySavingsLeaf,
+            contentDescription = null,
+            tint = FinancialColors.gold,
+            modifier = Modifier.size(72.dp)
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        Text(
+            "从这里开始积累",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            "添加你的第一笔资产",
+            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(40.dp))
+
+        // Action card: Add Deposit
+        ElevatedCard(
+            onClick = onAddDeposit,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(FinancialColors.deposit.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "+",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = FinancialColors.deposit
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "添加存款",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "开始储蓄",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Action card: Add Holding
+        ElevatedCard(
+            onClick = { onAddHolding("STOCK") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(FinancialColors.gold.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "+",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = FinancialColors.gold
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "添加持仓",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "开始投资",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(32.dp))
+
+        Text(
+            "复利的魔力，从第一笔开始",
+            fontSize = 12.sp,
+            color = FinancialColors.gold.copy(alpha = 0.7f),
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+        )
     }
 }

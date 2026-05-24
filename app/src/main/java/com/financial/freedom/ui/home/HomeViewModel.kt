@@ -50,17 +50,17 @@ data class HomeUiState(
     val todayChangePct: String = "+0.00%",
     val isUp: Boolean = true,
     val depositValue: String = "--,--",
-    val depositChange: String = "+0",
+    val depositChange: String = "+0.00",
     val stockValue: String = "--,--",
-    val stockChange: String = "+0",
+    val stockChange: String = "+0.00",
     val fundValue: String = "--,--",
-    val fundChange: String = "+0",
+    val fundChange: String = "+0.00",
     val goldValue: String = "--,--",
-    val goldChange: String = "+0",
+    val goldChange: String = "+0.00",
     val cashBalance: String = "0",
     val receivablesTotal: String = "0",
     val debtsTotal: String = "0",
-    val netWorth: String = "--,--,--.--",
+    val netWorth: String = "--,--,--",
     val netWorthRaw: BigDecimal = BigDecimal.ZERO,
     val todayGainRaw: BigDecimal = BigDecimal.ZERO,
     val cumulativeContributions: String = "--,--",
@@ -74,10 +74,14 @@ data class HomeUiState(
     val hoursSinceLastOpen: Int = 0,
     val passiveIncomeSinceLastOpen: String = "+0.00",
     val crossedMilestone: String? = null,
+    val consecutiveUpDays: Int = 0,
+    val monthOverMonthChange: String = "",
+    val monthOverMonthPct: String = "",
     val isAllTimeHigh: Boolean = false,
     // Investment breakdown for trend chart secondary line
     val investmentBreakdownMap: Map<LocalDate, BigDecimal> = emptyMap(),
-    val displayMultiplier: BigDecimal = BigDecimal.ONE
+    val displayMultiplier: BigDecimal = BigDecimal.ONE,
+    val isEmpty: Boolean = false
 )
 
 enum class TrendRange { WEEK, MONTH, YEAR }
@@ -478,6 +482,10 @@ class HomeViewModel @Inject constructor(
                 .multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
         } else BigDecimal.ZERO
 
+        // Compute consecutive up-days streak and month-over-month
+        val streak = computeStreak(accountId, asOfDate)
+        val (momChange, momPct) = computeMonthOverMonth(accountId, asOfDate, totalCNY)
+
         _uiState.value = _uiState.value.copy(
             totalValueCNY = formatMoneyShort(totalCNY),
             todayChange = formatSignedChange(displayDayChange),
@@ -494,12 +502,16 @@ class HomeViewModel @Inject constructor(
             cashBalance = formatMoney(cashBal),
             receivablesTotal = formatMoney(rcvTotalNw),
             debtsTotal = formatMoney(dbtTotalNw),
-            netWorth = formatMoney(netWorth),
+            netWorth = formatMoneyShort(netWorth),
             netWorthRaw = netWorth,
             todayGainRaw = displayDayChange,
             cumulativeContributions = formatMoney(cumulativeContributions),
             cumulativeReturn = formatSignedChange(cumulativeReturn),
-            cumulativeReturnPct = "${cumulativeReturnPct}%"
+            cumulativeReturnPct = "${cumulativeReturnPct}%",
+            consecutiveUpDays = streak,
+            monthOverMonthChange = momChange,
+            monthOverMonthPct = momPct,
+            isEmpty = deposits.isEmpty() && holdings.isEmpty()
         )
 
         // Persist today's summary to DB
@@ -565,7 +577,7 @@ class HomeViewModel @Inject constructor(
         return breakdownDao.getByDateRange(start, end, accountId)
             .filter { it.type == "STOCK" || it.type == "FUND" || it.type == "GOLD" }
             .groupBy { it.date }
-            .mapValues { (_, items) -> items.sumOf { it.valueCNY } }
+            .mapValues { (_, items) -> items.sumOf { it.changeCNY } }
     }
 
     private suspend fun updateDopamineState(accountId: Long, today: LocalDate) {
@@ -641,5 +653,34 @@ class HomeViewModel @Inject constructor(
     private fun formatMoney(value: BigDecimal): String {
         val multiplier = _uiState.value.displayMultiplier
         return com.financial.freedom.ui.common.FormatUtils.formatMoney(value, multiplier)
+    }
+
+    private suspend fun computeStreak(accountId: Long, today: LocalDate): Int {
+        val start = today.minus(90, kotlinx.datetime.DateTimeUnit.DAY)
+        val summaries = dailySummaryDao.getListByDateRange(start, today, accountId)
+            .sortedByDescending { it.date }
+        var streak = 0
+        var cursor = today
+        for (s in summaries) {
+            if (s.date == cursor && s.dayChange > BigDecimal.ZERO) {
+                streak++
+                cursor = cursor.minus(1, kotlinx.datetime.DateTimeUnit.DAY)
+            } else if (s.date < cursor) {
+                break
+            }
+        }
+        return streak
+    }
+
+    private suspend fun computeMonthOverMonth(accountId: Long, today: LocalDate, currentTotal: BigDecimal): Pair<String, String> {
+        val lastMonthDate = today.minus(30, kotlinx.datetime.DateTimeUnit.DAY)
+        val lastMonthSummary = dailySummaryDao.getByDate(lastMonthDate, accountId)
+        if (lastMonthSummary == null || lastMonthSummary.totalValueCNY <= BigDecimal.ZERO) {
+            return Pair("", "")
+        }
+        val change = currentTotal.subtract(lastMonthSummary.totalValueCNY)
+        val pct = change.divide(lastMonthSummary.totalValueCNY, 6, RoundingMode.HALF_UP)
+            .multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
+        return Pair(formatSignedChange(change), "${if (pct >= BigDecimal.ZERO) "+" else ""}${pct}%")
     }
 }

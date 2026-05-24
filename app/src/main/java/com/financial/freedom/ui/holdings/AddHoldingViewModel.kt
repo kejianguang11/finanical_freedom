@@ -3,6 +3,7 @@ package com.financial.freedom.ui.holdings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.financial.freedom.data.local.dao.CashTransactionDao
+import com.financial.freedom.data.local.dao.DailySummaryDao
 import com.financial.freedom.data.local.dao.HoldingDao
 import com.financial.freedom.data.local.dao.TransactionDao
 import com.financial.freedom.data.local.entity.CashTransaction
@@ -30,6 +31,7 @@ class AddHoldingViewModel @Inject constructor(
     private val holdingDao: HoldingDao,
     private val transactionDao: TransactionDao,
     private val cashTransactionDao: CashTransactionDao,
+    private val dailySummaryDao: DailySummaryDao,
     private val priceService: PriceService,
     private val backfillEngine: BackfillEngine,
     private val accountManager: AccountManager
@@ -67,7 +69,7 @@ class AddHoldingViewModel @Inject constructor(
     fun clearSearchResults() {
         _searchResults.value = emptyList()
     }
-    fun save(holding: Holding, deductFromCash: Boolean = false, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun save(holding: Holding, deductFromCash: Boolean = false, onSuccess: (savedAmount: String, totalAssets: String) -> Unit, onError: (String) -> Unit) {
         if (_isSaving.value) return
         val accountId = accountManager.currentAccountId.value
         if (accountId == null) {
@@ -100,8 +102,15 @@ class AddHoldingViewModel @Inject constructor(
                         )
                     )
                 }
-                onSuccess()
-                // 回填在后台跑，不阻塞返回
+                val investedAmount = holding.quantity.multiply(holding.costPrice).setScale(2, RoundingMode.HALF_UP)
+                val latestDate = dailySummaryDao.getLatestDate(accountId)
+                val latestNw = if (latestDate != null) {
+                    dailySummaryDao.getByDate(latestDate, accountId)?.netWorth ?: BigDecimal.ZERO
+                } else BigDecimal.ZERO
+                val roughTotal = latestNw.add(investedAmount)
+                val savedAmount = com.financial.freedom.ui.common.FormatUtils.formatMoney(investedAmount)
+                val totalAssets = com.financial.freedom.ui.common.FormatUtils.formatMoneyShort(roughTotal)
+                onSuccess(savedAmount, totalAssets)
                 viewModelScope.launch(Dispatchers.IO) {
                     backfillEngine.markDirtyAndBackfill(holding.costDate, accountId)
                 }

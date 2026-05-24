@@ -6,6 +6,12 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -676,11 +682,22 @@ fun BankGroupCard(
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("今日利息", fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Subtle breathing animation on interest — "money growing"
+                    val breathAlpha by rememberInfiniteTransition(label = "interestBreath").animateFloat(
+                        initialValue = 0.75f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "breath"
+                    )
                     Text(
                         group.todayTotalInterest,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (group.isInterestUp) FinancialColors.up else FinancialColors.down
+                        color = (if (group.isInterestUp) FinancialColors.up else FinancialColors.down)
+                            .copy(alpha = breathAlpha)
                     )
                 }
 

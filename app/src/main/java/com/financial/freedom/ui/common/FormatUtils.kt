@@ -16,7 +16,12 @@ object FormatUtils {
         val integer = abs.toBigInteger().toString()
         val formattedInt = integer.reversed().chunked(3).joinToString(",").reversed()
         val decimal = abs.subtract(BigDecimal(abs.toBigInteger())).toPlainString().removePrefix("0")
-        val full = if (decimal.isNotEmpty() && decimal != ".00") "$formattedInt$decimal" else formattedInt
+        val decimalStr = when {
+            decimal.isEmpty() -> ".00"
+            decimal.length == 2 -> "${decimal}0"
+            else -> decimal
+        }
+        val full = "$formattedInt$decimalStr"
         return if (rounded < BigDecimal.ZERO) "-$full" else full
     }
 

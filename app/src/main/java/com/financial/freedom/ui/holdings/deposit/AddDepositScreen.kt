@@ -224,8 +224,8 @@ fun AddDepositScreen(
                             note = note
                         ),
                         deductFromCash = deductFromCash,
-                        onSuccess = {
-                            Toast.makeText(context, "存款已保存", Toast.LENGTH_SHORT).show()
+                        onSuccess = { savedAmount, totalAssets ->
+                            Toast.makeText(context, "已存入 ¥$savedAmount · 总资产 ¥$totalAssets", Toast.LENGTH_SHORT).show()
                             onSaved()
                         },
                         onError = { msg ->

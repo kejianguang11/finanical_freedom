@@ -162,7 +162,9 @@ private fun PageContent(
 ) {
     when (page) {
         PagerPage.HOME -> HomeScreen(
-            onScrollToPage = { idx -> pagerScope.launch { pagerState.animateScrollToPage(idx) } }
+            onScrollToPage = { idx -> pagerScope.launch { pagerState.animateScrollToPage(idx) } },
+            onAddDeposit = onAddDeposit,
+            onAddHolding = onAddHolding
         )
         PagerPage.STOCK -> StockPage(
             onHoldingClick = onHoldingClick,
