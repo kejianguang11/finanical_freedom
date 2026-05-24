@@ -110,7 +110,7 @@ fun EarningsScreen(
                 0 -> DayEarningsView(pageState, viewModel)
                 1 -> WeekEarningsView(pageState, viewModel)
                 2 -> MonthEarningsView(pageState, viewModel)
-                3 -> YearEarningsView(pageState)
+                3 -> YearEarningsView(pageState, onSelectMode = { viewModel.selectYearViewMode(it) })
             }
         }
     }
@@ -833,7 +833,7 @@ private fun MonthEarningsView(state: EarningsUiState, viewModel: EarningsViewMod
 
 // ===== Year View =====
 @Composable
-private fun YearEarningsView(state: EarningsUiState) {
+private fun YearEarningsView(state: EarningsUiState, onSelectMode: (YearViewMode) -> Unit = {}) {
     if (state.yearEarnings.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("暂无收益数据", style = MaterialTheme.typography.bodyMedium,
@@ -847,12 +847,49 @@ private fun YearEarningsView(state: EarningsUiState) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("年度汇总", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("年度汇总", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+
+                // Pill toggle: 收益 / 总资产
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    for (mode in listOf(YearViewMode.EARNINGS to "收益", YearViewMode.TOTAL_ASSETS to "总资产")) {
+                        val isSelected = state.yearViewMode == mode.first
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(
+                                    if (isSelected) FinancialColors.gold
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .clickable { onSelectMode(mode.first) }
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                mode.second,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(8.dp))
         }
 
         itemsIndexed(state.yearEarnings) { _, year ->
-            val isUp = year.totalChange >= BigDecimal.ZERO
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
@@ -867,39 +904,98 @@ private fun YearEarningsView(state: EarningsUiState) {
                     )
                     Spacer(Modifier.height(12.dp))
 
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("年度总收益", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                formatChangeAmount(year.totalChange, state.displayMultiplier),
-                                fontWeight = FontWeight.Bold,
-                                color = if (year.totalChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
-                                    else if (isUp) FinancialColors.up else FinancialColors.down,
-                                maxLines = 1,
-                                softWrap = false)
+                    when (state.yearViewMode) {
+                        YearViewMode.EARNINGS -> {
+                            val isUp = year.totalChange >= BigDecimal.ZERO
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("年度总收益", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        formatChangeAmount(year.totalChange, state.displayMultiplier),
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (year.totalChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                                            else if (isUp) FinancialColors.up else FinancialColors.down,
+                                        maxLines = 1,
+                                        softWrap = false)
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("上涨天数", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("${year.upDays}", fontWeight = FontWeight.Bold)
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("下跌天数", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("${year.downDays}", fontWeight = FontWeight.Bold)
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("活跃天数", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("${year.totalDays}", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("上涨天数", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Text("${year.upDays}", fontWeight = FontWeight.Bold)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("下跌天数", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Text("${year.downDays}", fontWeight = FontWeight.Bold)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("活跃天数", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Text("${year.totalDays}", fontWeight = FontWeight.Bold)
+                        YearViewMode.TOTAL_ASSETS -> {
+                            val endValue = year.yearEndTotalValue
+                            val yoyChange = year.yearOverYearChange
+                            val yoyPct = year.yearOverYearChangePct
+
+                            if (endValue != null) {
+                                Text(
+                                    "年末总资产",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "¥${com.financial.freedom.ui.common.FormatUtils.formatMoney(endValue, state.displayMultiplier)}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            } else {
+                                Text(
+                                    "暂无资产数据",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            if (yoyChange != null && yoyPct != null) {
+                                Spacer(Modifier.height(6.dp))
+                                val yoyUp = yoyChange >= BigDecimal.ZERO
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "较上年 ",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        com.financial.freedom.ui.common.FormatUtils.formatSignedChange(yoyChange, state.displayMultiplier),
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = if (yoyChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                                            else if (yoyUp) FinancialColors.up else FinancialColors.down
+                                    )
+                                    Text(
+                                        "  (${if (yoyUp) "+" else ""}${com.financial.freedom.ui.common.FormatUtils.formatMoney(yoyPct, BigDecimal.ONE)}%)",
+                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 13.sp,
+                                        color = if (yoyChange == BigDecimal.ZERO) MaterialTheme.colorScheme.onSurfaceVariant
+                                            else if (yoyUp) FinancialColors.up else FinancialColors.down
+                                    )
+                                }
+                            }
                         }
                     }
                 }

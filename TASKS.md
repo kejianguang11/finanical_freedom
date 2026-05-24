@@ -34,6 +34,12 @@
 | 23 - 统一CSV & 名称回填 & 现金扣款 | pending | 6 个子任务 |
 | 24 - 自动搜索 & 港股搜索 & 黄金简化 & 多笔交易 | done | 8 个子任务 |
 | 25 - 持仓分组重设计 | pending | 7 个子任务（v17 核心特性） |
+| 26 - 一键重算收益 & 显示倍率 | done | 已实现 ✅ |
+| 27 - 现金/信用 v22 重设计 | done | 已实现 ✅ |
+| 28 - 黄金 v23 重设计 | done | 单一资产多次买入 ✅（被 v24 替代） |
+| 29 - 黄金 v24 两层重设计 | pending | 6 个子任务（概览卡片 + 独立详情 + 减仓 + 删除） |
+| 30 - 黄金走势图坐标轴标注 | in_progress | Y轴价格标签 + 网格线 + X轴日期（GoldDetailChart + GoldChartWithBuyMarkers） |
+| 31 - 年度收益/总资产切换 | done | 3 个子任务（年视图 pill 切换 + 数据模型 + UI） ✅ |
 
 ---
 
@@ -1306,3 +1312,240 @@
 - UI_DESIGN.md Section 6.5：数字格式化规则
 - UI_DESIGN.md Section 8.2：周视图未来周处理
 - PRD.md Section 二十五：资产增涨爽感系统需求描述
+
+## 阶段 27：现金/信用页面 v22 重设计（2026-05-24）
+
+> 依赖：阶段 0-26 全部完成
+> 设计文档：UI_DESIGN.md 7.6、7.7、7.10、7.11 | PRD.md 现金 Tab、信用 Tab
+
+### 27.1 数据层 — Entity 变更
+
+- [ ] `Receivable` 移除 `expectedDate` 字段，新增 `status: String = "未还"`
+- [ ] `Debt` 移除 `interestRate` 字段，新增 `status: String = "未还"`
+- [ ] `CashTransaction` 新增 `type` 值：`LEND`（借钱出金）、`REPAY`（还款入金）
+- [ ] `CashTransaction` 新增 `relatedId: Long?` 字段（关联 Receivable/Debt id）
+- [ ] Room 数据库版本号 +1，编写 Migration（ALTER TABLE 删旧列加新列）
+- [ ] DAO 更新：ReceivableDao / DebtDao 新增 `updateStatus(id, status)` 方法
+- [ ] DAO 更新：CashTransactionDao 查询支持新 type
+
+### 27.2 现金页面 — UI 重设计
+
+- [ ] `CashScreen.kt` 余额大号居中（32sp Serif Bold），移除旧 ElevatedCard 包裹
+- [ ] 入金/出金按钮紧凑排列在余额下方
+- [ ] 流水区域默认折叠为「最近流水 ▼」，展开显示最近 5 条
+- [ ] 展开后底部「查看全部流水 →」入口
+- [ ] 每条流水卡片：日期和类型同行（`·` 分隔），备注在下行
+- [ ] `CashDialog` 日期默认今天，保留金额 + 备注字段
+
+### 27.3 信用页面 — UI 重设计
+
+- [ ] `CreditScreen.kt` 应收/应付双折叠区（独立展开收起）
+- [ ] 折叠头部：左边线色条 + 标题 + 总金额 + 笔数·状态
+- [ ] 展开后每张卡片：姓名 + 金额 + 日期·状态同行 + 编辑按钮
+- [ ] 净资产行底部常驻：正数绿色「净应收」、负数红色「净负债」
+- [ ] 移除所有 `expectedDate`、`interestRate` 相关 UI
+- [ ] `ReceivableDialog` 重设计：姓名、金额、日期、☑从现金账户扣除
+- [ ] `DebtDialog` 重设计：来源、金额、日期、☑入现金账户
+
+### 27.4 信用页面 — 交互逻辑
+
+- [ ] 卡片点击弹出选项菜单：编辑 / 已归还(已还) / 删除
+- [ ] 「已归还」标记应收为"已还" + 自动生成 REPAY 入金流水
+- [ ] 「已还」标记应付为"已还" + 自动生成 REPAY 出金流水
+- [ ] 新增应收勾选「从现金扣除」→ 自动生成 LEND 出金流水
+- [ ] 新增应付勾选「入现金账户」→ 自动生成 LEND 入金流水
+
+### 27.5 ViewModel 变更
+
+- [ ] `CashViewModel` 支持 LEND/REPAY 类型流水展示和生成
+- [ ] `CreditViewModel` 新增 `markReceivableRepaid(id)` / `markDebtPaid(id)` 方法
+- [ ] `CreditViewModel` 更新 `addReceivable` / `addDebt` 签名（移除旧参数，新增 deductFromCash 等）
+- [ ] `CreditViewModel` 应收/应付合计只统计"未还"状态的条目
+
+### 27.6 编译验证 & 收尾
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 无编译错误和警告
+- [ ] 安装到设备验证：现金余额英雄区 + 折叠流水
+- [ ] 安装到设备验证：信用双折叠 + 净资产 + 已归还入金
+- [ ] 安装到设备验证：新增应收勾选从现金扣除 → 现金减少
+- [ ] 提交 GitHub
+
+## 阶段 27b：信用页面术语简化（2026-05-24）
+
+> 依赖：阶段 27 全部完成
+> 设计文档：UI_DESIGN.md 7.7、7.11 | PRD.md 信用 Tab
+> 目标：应收/应付 → 借出/负债，大白话命名，核心操作可见化
+
+### 27b.1 UI 术语全面更新
+
+- [ ] `CreditScreen.kt`：SectionHeader 标题 应收→借出、应付→负债
+- [ ] `CreditScreen.kt`：卡片操作按钮 [编辑]→[对方已还款]/[我已还清] + ··· 菜单
+- [ ] `CreditScreen.kt`：ReceivableDialog 标题「新增应收款」→「新增借出」，字段「对方姓名」→「借款人」
+- [ ] `CreditScreen.kt`：DebtDialog 标题「新增应付」→「新增负债」，字段「来源（银行/个人）」→「债权人」
+- [ ] `CreditScreen.kt`：复选框文本更新：从现金账户扣除→现金同步扣减，入现金账户→现金同步到账
+- [ ] `CreditScreen.kt`：底部净头寸行：净应收→净借出，净负债不变
+- [ ] `CreditScreen.kt`：空状态提示文本更新
+
+### 27b.2 编译验证
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 安装到设备验证：新术语显示正确
+- [ ] 提交 GitHub
+
+## 阶段 28：黄金 v23 重设计 — 单一资产多次买入（2026-05-24）
+
+> 依赖：阶段 0-27 全部完成
+> 设计文档：UI_DESIGN.md 7.3 | PRD.md 黄金卡片、新增黄金买入
+
+### 28.1 数据层 — 加仓模式
+
+- [ ] 黄金不再每个买入创建 Holding，改为 1 个 Holding（汇总） + N 个 Transaction
+- [ ] `GoldViewModel`（新建）：管理黄金汇总状态、买入列表、新增/编辑/删除买入
+- [ ] 新增买入时：创建 Transaction(type=BUY) + 更新 Holding(quantity += 克数, costPrice = 加权均价)
+- [ ] 编辑买入时：更新 Transaction + 重算 Holding
+- [ ] 删除买入时：删除 Transaction + 重算 Holding（若最后一笔则删除 Holding）
+- [ ] 勾选从现金扣除 → 自动生成 CashTransaction
+
+### 28.2 黄金主页 — 聚合卡片 UI
+
+- [ ] 替换现有 GoldPage 为单手聚合卡片布局
+- [ ] 卡片显示：实时金价、涨跌、持有克数、均价、成本、市值、盈亏
+- [ ] 买入记录默认折叠，展开显示每笔：日期 + 单价 + 克数 + 编辑按钮
+- [ ] [+ 买入黄金] 按钮
+- [ ] 卡片内嵌迷你走势图（30天），标注买入点
+
+### 28.3 新增/编辑买入弹窗
+
+- [ ] 日期（DatePickerDialog）+ 单价 + 克数
+- [ ] 自动计算买入总价 = 单价 × 克数
+- [ ] ☐ 从现金账户扣除
+- [ ] 编辑模式：修改日期/单价/克数，或删除该笔买入
+
+### 28.4 走势图详情页 — 买入点标注
+
+- [ ] 价格-时间折线图（Y轴=价格，X轴=时间）
+- [ ] 买入点标注：醒目圆点标记（金色 #B7930A），位置 = 买入日期 × 买入单价
+- [ ] 点击买入标记 → tooltip：日期、单价、克数、总价、vs 当前盈亏
+- [ ] 30天/90天/1年范围切换
+- [ ] 下方买入明细列表 + 底部汇总
+
+### 28.5 编译验证 & 收尾
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 安装到设备验证：黄金聚合卡片 + 买入记录折叠
+- [ ] 安装到设备验证：新增买入 + 自动重算均价
+- [ ] 安装到设备验证：走势图买入点标注 + tooltip
+- [ ] 提交 GitHub
+
+## 阶段 29：黄金 v24 两层重设计（2026-05-24）
+
+> 依赖：阶段 0-28 全部完成
+> 设计文档：UI_DESIGN.md 7.3 | PRD.md 黄金卡片
+> 设计原则：外层紧凑概览卡片（像股票）+ 点击进入独立详情页 + 支持减仓和删除全部持仓
+
+### 29.1 GoldPage 精简 — 紧凑概览卡片
+
+- [ ] `GoldScreen.kt`：替换内联详情为紧凑概览卡片
+  - Au 徽章 + 名称 + 克数 + 市值（大字）
+  - 今日涨跌 + 持仓盈亏（并排，涨跌色）
+  - 成本均价 + 总成本
+  - 迷你走势图（40dp 高）+ "点击查看 >" 入口
+- [ ] 移除内联的完整走势图、买入记录展开列表、编辑/删除操作
+- [ ] 卡片点击 → `onCardClick` → 导航至 `GoldDetailScreen`
+- [ ] FAB 保留，点击弹出买入对话框（同 v23）
+- [ ] 空状态保留（无持仓时居中引导）
+
+### 29.2 GoldDetailScreen — 独立详情页
+
+- [ ] 新建 `GoldDetailScreen.kt` + `GoldDetailViewModel.kt`
+- [ ] TopAppBar：返回箭头 + "黄金 (XAU)" + 右侧删除图标
+- [ ] 市值 Hero：大号市值居中 + 今日涨跌
+- [ ] 走势图（30 天）+ 买入点标注 + 1月/3月/1年切换
+- [ ] 盈亏双卡（持仓盈亏 + 今日涨跌）
+- [ ] 持仓信息三列（持仓量 / 成本均价 / 总成本）
+- [ ] 买入记录列表（每笔：序号 + 日期 + 单价 × 克数 = 总价 + 编辑/删除菜单）
+- [ ] GoldDetailViewModel 复用 GoldViewModel 的数据逻辑（fetch、render、CRUD）
+
+### 29.3 加仓/减仓按钮
+
+- [ ] 详情页添加 [+ 加仓] [− 减仓] 按钮（黄金不再限制加减仓）
+- [ ] 加仓：复用现有 GoldPurchaseDialog 逻辑
+- [ ] 减仓：新增 GoldReduceDialog
+  - 卖出克数 + 卖出单价 + 卖出日期
+  - 实时预览：剩余克数、实现盈亏
+  - ☐ 收入计入现金
+  - 减仓克数 > 持仓 → 报错
+  - 减仓克数 = 持仓 → 全部清仓二次确认
+- [ ] GoldDetailViewModel 新增 `reducePosition()` 方法
+  - 创建 Transaction(type=SELL)
+  - quantity -= 卖出克数
+  - 若 quantity = 0 → status = "closed"
+
+### 29.4 删除全部持仓
+
+- [ ] 详情页右上角删除图标 + 底部红色"删除全部黄金持仓"按钮
+- [ ] 二次确认弹窗
+- [ ] 确认后：删除 Holding + 所有 Transaction + 所有 PriceSnapshot
+- [ ] 删除后自动返回 GoldPage（显示空状态）
+
+### 29.5 导航 & 路由
+
+- [ ] `Route.kt`：新增 `GoldDetail` 路由
+- [ ] `AppNavigation.kt`：注册 `GoldDetail` → `GoldDetailScreen`
+- [ ] `GoldPage` 的 `onHoldingClick` 回调改为 navigate 到 `GoldDetail`
+- [ ] 确保返回栈正确（GoldDetail → back → GoldPage）
+
+### 29.6 编译验证 & 收尾
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 安装到设备验证：GoldPage 紧凑卡片 + 点击进入详情
+- [ ] 安装到设备验证：详情页走势图 + 买入记录 + 加减仓
+- [ ] 安装到设备验证：减仓弹窗 + 删除全部持仓
+- [ ] 安装到设备验证：空状态 → 添加 → 卡片出现
+- [ ] 提交 GitHub
+
+---
+
+## 阶段 30：黄金走势图坐标轴标注（2026-05-24）
+
+> 黄金走势图目前只画曲线和标记点，缺少 Y 轴价格标签和 X 轴日期，用户无法读取具体价格。
+
+### 30.1 GoldDetailChart 坐标轴
+- [ ] 重构为 Row（Y轴标签 Column + Canvas）
+- [ ] Y 轴：3-4 个价格标签（元/克），格式 `¥1,234`
+- [ ] 横向网格线（半透明）
+- [ ] X 轴：底部日期标签（智能采样，避免重叠）
+
+### 30.2 GoldChartWithBuyMarkers 坐标轴
+- [ ] 同样添加 Y 轴价格标签 + 网格线 + X 轴日期
+
+### 30.3 编译验证
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 安装到设备验证走势图价格标签
+- [ ] 提交 GitHub
+
+---
+
+## 阶段 31：年度收益/总资产切换（2026-05-24）
+
+> 年视图增加收益/总资产双模式 pill 切换。收益模式看投资波动，总资产模式看年末资产总值 + 较上年变化。数据在 loadYearView 时一次性加载，切换不重新查询数据库。
+
+### 31.1 数据模型
+- [x] `YearEarning` 新增字段：`yearEndTotalValue`, `yearOverYearChange`, `yearOverYearChangePct`
+- [x] `EarningsUiState` 新增 `yearViewMode: YearViewMode` 枚举（EARNINGS / TOTAL_ASSETS）
+
+### 31.2 ViewModel
+- [x] `loadYearView()` 同时查询年末 `DailySummary.totalValueCNY`，计算同比变化
+- [x] 新增 `selectYearViewMode(mode)` 方法切换模式
+
+### 31.3 UI
+- [x] `YearEarningsView` 新增顶部 pill 切换（收益 / 总资产）
+- [x] 收益模式：保留现有卡片（年度总收益 + 涨/跌/活跃天数）
+- [x] 总资产模式：卡片显示年末总资产 + 较上年变化额 + 变化率
+- [x] 日/周/月视图不修改
+
+### 31.4 编译验证
+- [x] `./gradlew assembleDebug` 编译通过
+- [x] 安装到设备验证年视图切换
+- [ ] 提交 GitHub

@@ -62,8 +62,13 @@ data class YearEarning(
     val totalChange: BigDecimal,
     val upDays: Int,
     val downDays: Int,
-    val totalDays: Int
+    val totalDays: Int,
+    val yearEndTotalValue: BigDecimal? = null,
+    val yearOverYearChange: BigDecimal? = null,
+    val yearOverYearChangePct: BigDecimal? = null
 )
+
+enum class YearViewMode { EARNINGS, TOTAL_ASSETS }
 
 data class EarningsUiState(
     val selectedView: Int = 0,
@@ -81,7 +86,8 @@ data class EarningsUiState(
     val selectedYear: Int = Clock.System.todayIn(TimeZone.currentSystemDefault()).year,
     val selectedMonth: Int? = null,
     val monthBreakdown: List<MonthBreakdown> = emptyList(),
-    val earliestYear: Int = Clock.System.todayIn(TimeZone.currentSystemDefault()).year
+    val earliestYear: Int = Clock.System.todayIn(TimeZone.currentSystemDefault()).year,
+    val yearViewMode: YearViewMode = YearViewMode.EARNINGS
 )
 
 @HiltViewModel
@@ -436,11 +442,42 @@ class EarningsViewModel @Inject constructor(
             val totalChange = byDate.values.fold(BigDecimal.ZERO) { acc, dayItems -> acc + visibleTotal(dayItems) }
             val up = byDate.values.count { dayItems -> visibleTotal(dayItems) > BigDecimal.ZERO }
             val down = byDate.values.count { dayItems -> visibleTotal(dayItems) < BigDecimal.ZERO }
-            val days = byDate.values
-            YearEarning(year, totalChange, up, down, days.size)
+            YearEarning(year, totalChange, up, down, byDate.values.size)
         }.sortedByDescending { it.year }
 
-        _uiState.value = _uiState.value.copy(yearEarnings = years)
+        // Load year-end totalValueCNY from DailySummary for total asset mode
+        val assetStartDate = LocalDate(today.year - 3, 1, 1)
+        val summaries = summaryRepository.getListByDateRange(assetStartDate, today, accountId)
+        val summariesByYear = summaries.groupBy { it.date.year }
+
+        val yearEndValues = mutableMapOf<Int, BigDecimal>()
+        for ((year, yearSummaries) in summariesByYear) {
+            val lastSummary = yearSummaries.maxByOrNull { it.date }
+            if (lastSummary != null) {
+                yearEndValues[year] = lastSummary.totalValueCNY
+            }
+        }
+
+        val enrichedYears = years.map { ye ->
+            val endValue = yearEndValues[ye.year]
+            val prevYearEndValue = yearEndValues[ye.year - 1]
+            val yoyChange = if (endValue != null && prevYearEndValue != null)
+                endValue - prevYearEndValue else null
+            val yoyChangePct = if (yoyChange != null && prevYearEndValue != null && prevYearEndValue != BigDecimal.ZERO)
+                yoyChange.multiply(BigDecimal("100")).divide(prevYearEndValue, 4, RoundingMode.HALF_UP) else null
+
+            ye.copy(
+                yearEndTotalValue = endValue,
+                yearOverYearChange = yoyChange,
+                yearOverYearChangePct = yoyChangePct
+            )
+        }
+
+        _uiState.value = _uiState.value.copy(yearEarnings = enrichedYears)
+    }
+
+    fun selectYearViewMode(mode: YearViewMode) {
+        _uiState.value = _uiState.value.copy(yearViewMode = mode)
     }
 
     companion object {
