@@ -15,6 +15,7 @@ import com.financial.freedom.ui.auth.PinUnlockScreen
 import com.financial.freedom.ui.auth.WelcomeScreen
 import com.financial.freedom.ui.holdings.AddHoldingScreen
 import com.financial.freedom.ui.holdings.EditHoldingScreen
+import com.financial.freedom.ui.holdings.GoldDetailScreen
 import com.financial.freedom.ui.holdings.HoldingDetailScreen
 import com.financial.freedom.ui.holdings.deposit.AddDepositScreen
 import com.financial.freedom.ui.holdings.deposit.BankDepositsScreen
@@ -83,6 +84,7 @@ fun AppNavHost(
                 pagerState = pagerState,
                 coroutineScope = coroutineScope,
                 onHoldingClick = { id -> navController.navigate(Route.HoldingDetail(id)) },
+                goldClick = { id -> navController.navigate(Route.GoldDetail(id)) },
                 onBankClick = { bank, status -> navController.navigate(Route.BankDeposits(bank, status)) },
                 onAddDeposit = { navController.navigate(Route.AddDeposit) },
                 onAddHolding = { type -> navController.navigate(Route.AddHolding(type)) }
@@ -99,6 +101,7 @@ fun AppNavHost(
                 pagerState = pagerState,
                 coroutineScope = coroutineScope,
                 onHoldingClick = { id -> navController.navigate(Route.HoldingDetail(id)) },
+                goldClick = { id -> navController.navigate(Route.GoldDetail(id)) },
                 onBankClick = { bank, status -> navController.navigate(Route.BankDeposits(bank, status)) },
                 onAddDeposit = { navController.navigate(Route.AddDeposit) },
                 onAddHolding = { type -> navController.navigate(Route.AddHolding(type)) }
@@ -111,6 +114,14 @@ fun AppNavHost(
             HoldingDetailScreen(
                 holdingId = route.holdingId,
                 onEdit = { navController.navigate(Route.EditHolding(route.holdingId)) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Route.GoldDetail> { backStackEntry ->
+            val route = backStackEntry.toRoute<Route.GoldDetail>()
+            GoldDetailScreen(
+                holdingId = route.holdingId,
                 onBack = { navController.popBackStack() }
             )
         }

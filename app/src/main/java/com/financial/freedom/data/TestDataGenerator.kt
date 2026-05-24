@@ -258,12 +258,12 @@ class TestDataGenerator @Inject constructor(
         receivableDao.insert(
             Receivable(accountId = accountId, name = "张三", amount = BigDecimal("20000"),
                 date = today.minus(60, DateTimeUnit.DAY),
-                expectedDate = today.plus(30, DateTimeUnit.DAY), note = "借款")
+                status = "未还", note = "借款")
         )
         receivableDao.insert(
             Receivable(accountId = accountId, name = "王五", amount = BigDecimal("10000"),
                 date = today.minus(10, DateTimeUnit.DAY),
-                expectedDate = null, note = "垫付差旅费")
+                status = "未还", note = "垫付差旅费")
         )
     }
 
@@ -275,12 +275,12 @@ class TestDataGenerator @Inject constructor(
         debtDao.insert(
             Debt(accountId = accountId, name = "招行信用卡", amount = BigDecimal("35000"),
                 date = today.minus(45, DateTimeUnit.DAY),
-                interestRate = BigDecimal("0.0005"), note = "本月账单")
+                status = "未还", note = "本月账单")
         )
         debtDao.insert(
             Debt(accountId = accountId, name = "李四", amount = BigDecimal("25000"),
                 date = today.minus(20, DateTimeUnit.DAY),
-                interestRate = null, note = "装修借款")
+                status = "未还", note = "装修借款")
         )
     }
 

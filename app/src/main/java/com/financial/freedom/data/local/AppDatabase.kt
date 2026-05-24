@@ -40,7 +40,7 @@ import com.financial.freedom.data.local.entity.Transaction
         Receivable::class,
         Debt::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

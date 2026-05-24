@@ -41,6 +41,11 @@ import com.financial.freedom.ui.theme.FinancialColors
 import java.math.BigDecimal
 import java.math.RoundingMode
 
+enum class TooltipType {
+    NET_WORTH,
+    EARNINGS
+}
+
 data class ChartPoint(
     val date: String,
     val value: Double,
@@ -57,7 +62,8 @@ fun TrendChart(
     secondaryData: List<DailySummary>? = null,
     secondaryLabel: String? = null,
     secondaryColor: Color = FinancialColors.deposit,
-    multiplier: BigDecimal = BigDecimal.ONE
+    multiplier: BigDecimal = BigDecimal.ONE,
+    tooltipType: TooltipType = TooltipType.NET_WORTH
 ) {
     if (data.isEmpty()) return
 
@@ -105,12 +111,19 @@ fun TrendChart(
         }
     }
 
-    val minVal = remember(points) { points.minOf { it.value } }
-    val maxVal = remember(points) { points.maxOf { it.value } }
+    val rawMinVal = remember(points) { points.minOf { it.value } }
+    val rawMaxVal = remember(points) { points.maxOf { it.value } }
+    val (minVal, maxVal) = when (tooltipType) {
+        TooltipType.EARNINGS -> {
+            val absMax = maxOf(kotlin.math.abs(rawMinVal), kotlin.math.abs(rawMaxVal)).coerceAtLeast(1.0)
+            Pair(-absMax, absMax)
+        }
+        TooltipType.NET_WORTH -> Pair(rawMinVal, rawMaxVal)
+    }
     val range = (maxVal - minVal).coerceAtLeast(0.01)
     val midVal = (minVal + maxVal) / 2.0
 
-    val yLabels = remember(minVal, maxVal, showPercentage) {
+    val yLabels = remember(minVal, maxVal, showPercentage, tooltipType) {
         if (showPercentage) {
             listOf(
                 formatPctLabel(maxVal),
@@ -121,11 +134,11 @@ fun TrendChart(
             )
         } else {
             listOf(
-                formatYLabel(maxVal),
-                formatYLabel((maxVal + midVal) / 2),
-                formatYLabel(midVal),
-                formatYLabel((midVal + minVal) / 2),
-                formatYLabel(minVal)
+                formatYLabel(maxVal, tooltipType),
+                formatYLabel((maxVal + midVal) / 2, tooltipType),
+                formatYLabel(midVal, tooltipType),
+                formatYLabel((midVal + minVal) / 2, tooltipType),
+                formatYLabel(minVal, tooltipType)
             )
         }
     }
@@ -141,9 +154,9 @@ fun TrendChart(
         }
     }
 
-    var selectedPoint by remember { mutableStateOf<ChartPoint?>(null) }
-    var selectedX by remember { mutableStateOf(0f) }
-    var selectedY by remember { mutableStateOf(0f) }
+    var selectedPoint by remember(data) { mutableStateOf<ChartPoint?>(null) }
+    var selectedX by remember(data) { mutableStateOf(0f) }
+    var selectedY by remember(data) { mutableStateOf(0f) }
 
     val density = LocalDensity.current
 
@@ -258,14 +271,28 @@ fun TrendChart(
                     }
                     drawPath(fillPath, lineColor.copy(alpha = 0.1f))
 
-                    // Line
-                    val linePath = Path()
-                    points.forEachIndexed { i, pt ->
-                        val x = i * stepX
-                        val y = h - ((pt.value - minVal) / range * h).toFloat()
-                        if (i == 0) linePath.moveTo(x, y) else linePath.lineTo(x, y)
+                    // Line — per-segment color in earnings mode
+                    if (tooltipType == TooltipType.EARNINGS) {
+                        for (i in 0 until points.size - 1) {
+                            val pt0 = points[i]
+                            val pt1 = points[i + 1]
+                            val x0 = i * stepX
+                            val y0 = h - ((pt0.value - minVal) / range * h).toFloat()
+                            val x1 = (i + 1) * stepX
+                            val y1 = h - ((pt1.value - minVal) / range * h).toFloat()
+                            val segColor = if (pt1.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
+                            val segPath = Path().apply { moveTo(x0, y0); lineTo(x1, y1) }
+                            drawPath(segPath, segColor, style = Stroke(width = 2.5.dp.toPx()))
+                        }
+                    } else {
+                        val linePath = Path()
+                        points.forEachIndexed { i, pt ->
+                            val x = i * stepX
+                            val y = h - ((pt.value - minVal) / range * h).toFloat()
+                            if (i == 0) linePath.moveTo(x, y) else linePath.lineTo(x, y)
+                        }
+                        drawPath(linePath, lineColor, style = Stroke(width = 2.5.dp.toPx()))
                     }
-                    drawPath(linePath, lineColor, style = Stroke(width = 2.5.dp.toPx()))
 
                     // Secondary dashed line
                     secondaryPoints?.let { secPts ->
@@ -287,14 +314,24 @@ fun TrendChart(
                     points.forEachIndexed { i, pt ->
                         val x = i * stepX
                         val y = h - ((pt.value - minVal) / range * h).toFloat()
-                        drawCircle(lineColor, radius = 3.dp.toPx(), center = Offset(x, y))
+                        val dotColor = when (tooltipType) {
+                            TooltipType.EARNINGS ->
+                                if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
+                            TooltipType.NET_WORTH -> lineColor
+                        }
+                        drawCircle(dotColor, radius = 3.dp.toPx(), center = Offset(x, y))
                     }
 
                     // Draw selection indicator
                     selectedPoint?.let { sel ->
                         val sx = selectedX
                         val sy = selectedY
-                        drawCircle(lineColor, radius = 7.dp.toPx(), center = Offset(sx, sy))
+                        val selColor = when (tooltipType) {
+                            TooltipType.EARNINGS ->
+                                if (sel.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
+                            TooltipType.NET_WORTH -> lineColor
+                        }
+                        drawCircle(selColor, radius = 7.dp.toPx(), center = Offset(sx, sy))
                         drawCircle(Color.White, radius = 4.dp.toPx(), center = Offset(sx, sy))
                     }
                 }
@@ -302,6 +339,7 @@ fun TrendChart(
                 // Tooltip
                 selectedPoint?.let { pt ->
                     val tipBg = MaterialTheme.colorScheme.inverseSurface
+                    val isGain = pt.dayChange >= BigDecimal.ZERO
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
@@ -310,33 +348,59 @@ fun TrendChart(
                             .background(tipBg)
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                pt.date,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.inverseOnSurface
-                            )
-                            Text(
-                                if (showPercentage) "${if (pt.value >= 0) "+" else ""}${pt.value}%"
-                                else formatMoney(pt.rawValue, multiplier),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
-                            )
-                            Row {
-                                Text(
-                                    "涨跌 ${formatMoney(pt.dayChange.abs(), multiplier)}",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    "(${pt.dayChangePct}%)",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (pt.dayChange >= BigDecimal.ZERO) FinancialColors.up else FinancialColors.down
-                                )
+                        when (tooltipType) {
+                            TooltipType.EARNINGS -> {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        pt.date,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.inverseOnSurface
+                                    )
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text(
+                                            "${if (pt.dayChange >= BigDecimal.ZERO) "+" else ""}${formatMoney(pt.dayChange, multiplier)}",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isGain) FinancialColors.up else FinancialColors.down
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            "(${pt.dayChangePct}%)",
+                                            fontSize = 11.sp,
+                                            color = if (isGain) FinancialColors.up else FinancialColors.down
+                                        )
+                                    }
+                                }
+                            }
+                            TooltipType.NET_WORTH -> {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        pt.date,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.inverseOnSurface
+                                    )
+                                    Text(
+                                        formatMoney(pt.rawValue, multiplier),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.inverseOnSurface
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text(
+                                            "${if (pt.dayChange >= BigDecimal.ZERO) "+" else ""}${formatMoney(pt.dayChange, multiplier)}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isGain) FinancialColors.up else FinancialColors.down
+                                        )
+                                        Spacer(Modifier.width(3.dp))
+                                        Text(
+                                            "(${pt.dayChangePct}%)",
+                                            fontSize = 10.sp,
+                                            color = if (isGain) FinancialColors.up else FinancialColors.down
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -363,18 +427,26 @@ fun TrendChart(
     }
 }
 
-private fun formatYLabel(value: Double): String {
+private fun formatYLabel(value: Double, tooltipType: TooltipType = TooltipType.NET_WORTH): String {
     val abs = kotlin.math.abs(value)
+    val decimals = tooltipType == TooltipType.EARNINGS
     return when {
-        abs >= 1_000_000 -> String.format("%.1fM", value / 1_000_000)
-        abs >= 10_000 -> String.format("%.1f万", value / 10_000)
-        abs >= 1_000 -> String.format("%.1fk", value / 1_000)
-        else -> String.format("%.0f", value)
+        abs >= 1_000_000 -> formatLarge(value / 1_000_000, "M", decimals)
+        abs >= 10_000 -> formatLarge(value / 10_000, "万", decimals)
+        abs >= 1_000 -> formatLarge(value / 1_000, "k", decimals)
+        else -> if (decimals) String.format("%.1f", value) else String.format("%.0f", value)
     }
 }
 
+private fun formatLarge(value: Double, suffix: String, decimals: Boolean): String {
+    val formatted = if (decimals) String.format("%.1f", value) else String.format("%.1f", value)
+    return if (formatted.endsWith(".0")) "${formatted.dropLast(2)}$suffix" else "$formatted$suffix"
+}
+
 private fun formatPctLabel(value: Double): String {
-    return if (value >= 0) "+${String.format("%.1f", value)}%" else "${String.format("%.1f", value)}%"
+    val formatted = String.format("%.1f", value)
+    val clean = if (formatted.endsWith(".0")) formatted.dropLast(2) else formatted
+    return if (value >= 0) "+${clean}%" else "${clean}%"
 }
 
 private fun formatMoney(value: BigDecimal, multiplier: BigDecimal): String {

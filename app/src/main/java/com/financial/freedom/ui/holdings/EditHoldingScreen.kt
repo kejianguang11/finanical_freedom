@@ -139,14 +139,7 @@ fun EditHoldingScreen(
             market = h!!.market
             quantity = h!!.quantity.toPlainString()
             if (h!!.type == "GOLD") {
-                // 黄金 costPrice 存储的是买入总价，反推单价
-                val grams = h!!.quantity
-                val totalPrice = h!!.costPrice
-                goldUnitPrice = if (grams > BigDecimal.ZERO) {
-                    totalPrice.divide(grams, 4, java.math.RoundingMode.HALF_UP).toPlainString()
-                } else {
-                    totalPrice.toPlainString()
-                }
+                goldUnitPrice = h!!.costPrice.toPlainString()
             } else {
                 costPrice = h!!.costPrice.toPlainString()
             }
@@ -287,7 +280,7 @@ fun EditHoldingScreen(
                         holding.copy(
                             symbol = "XAU", name = "黄金", market = "",
                             quantity = grams,
-                            costPrice = grams.multiply(unitPrice),
+                            costPrice = unitPrice,
                             costDate = LocalDate.parse(costDate),
                             note = note
                         )

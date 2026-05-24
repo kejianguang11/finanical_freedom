@@ -1,5 +1,9 @@
 package com.financial.freedom.ui.credit
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -18,12 +22,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -59,137 +69,142 @@ import java.math.BigDecimal
 fun CreditScreen(viewModel: CreditViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
 
+    var receivablesExpanded by remember { mutableStateOf(false) }
+    var debtsExpanded by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 16.dp)
     ) {
-        // 应收款区域
+        // 借出折叠区
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("应收款", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                IconButton(onClick = { viewModel.showAddReceivable() }) {
-                    Icon(Icons.Filled.Add, contentDescription = "新增应收款")
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-
-        if (state.receivables.isEmpty()) {
-            item {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(Modifier.padding(24.dp)) {
-                        Text("暂无应收款", style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SectionHeader(
+                title = "借出",
+                total = state.receivablesTotal,
+                count = state.receivables.count { it.status == "未还" },
+                accentColor = FinancialColors.receivable,
+                expanded = receivablesExpanded,
+                onToggle = { receivablesExpanded = !receivablesExpanded },
+                onAdd = { viewModel.showAddReceivable() }
+            )
+            AnimatedVisibility(
+                visible = receivablesExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column {
+                    Spacer(Modifier.height(4.dp))
+                    if (state.receivables.isEmpty()) {
+                        EmptyHint("暂无借出款")
+                    } else {
+                        state.receivables.forEach { r ->
+                            ReceivableItem(
+                                r = r,
+                                multiplier = state.displayMultiplier,
+                                onEdit = { viewModel.showEditReceivable(r) },
+                                onMarkRepaid = { viewModel.markReceivableRepaid(r) },
+                                onDelete = { viewModel.deleteReceivable(r) }
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                 }
             }
-        } else {
-            items(state.receivables, key = { "rec_${it.id}" }) { r ->
-                ReceivableCard(r, state.displayMultiplier, onEdit = { viewModel.showEditReceivable(r) },
-                    onDelete = { viewModel.deleteReceivable(r) })
-                Spacer(Modifier.height(8.dp))
-            }
+            Spacer(Modifier.height(12.dp))
         }
 
-        // 应收合计
+        // 负债折叠区
         item {
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("应收合计", style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("¥${state.receivablesTotal}", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = FinancialColors.up)
-            }
-            Spacer(Modifier.height(20.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(20.dp))
-        }
-
-        // 负债区域
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("负债", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                IconButton(onClick = { viewModel.showAddDebt() }) {
-                    Icon(Icons.Filled.Add, contentDescription = "新增负债")
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-
-        if (state.debts.isEmpty()) {
-            item {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(Modifier.padding(24.dp)) {
-                        Text("暂无负债", style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SectionHeader(
+                title = "负债",
+                total = state.debtsTotal,
+                count = state.debts.count { it.status == "未还" },
+                accentColor = FinancialColors.debt,
+                expanded = debtsExpanded,
+                onToggle = { debtsExpanded = !debtsExpanded },
+                onAdd = { viewModel.showAddDebt() }
+            )
+            AnimatedVisibility(
+                visible = debtsExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column {
+                    Spacer(Modifier.height(4.dp))
+                    if (state.debts.isEmpty()) {
+                        EmptyHint("暂无负债")
+                    } else {
+                        state.debts.forEach { d ->
+                            DebtItem(
+                                d = d,
+                                multiplier = state.displayMultiplier,
+                                onEdit = { viewModel.showEditDebt(d) },
+                                onMarkPaid = { viewModel.markDebtPaid(d) },
+                                onDelete = { viewModel.deleteDebt(d) }
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                 }
             }
-        } else {
-            items(state.debts, key = { "debt_${it.id}" }) { d ->
-                DebtCard(d, state.displayMultiplier, onEdit = { viewModel.showEditDebt(d) },
-                    onDelete = { viewModel.deleteDebt(d) })
-                Spacer(Modifier.height(8.dp))
-            }
+            Spacer(Modifier.height(12.dp))
         }
 
-        // 负债合计 + 净额
+        // 净资产底部常驻
         item {
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("负债合计", style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("¥${state.debtsTotal}", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = FinancialColors.down)
-            }
-            Spacer(Modifier.height(12.dp))
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("应收净额", style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold)
-                val netColor = if (state.netAmount.startsWith("-")) FinancialColors.down else FinancialColors.up
-                Text("¥${state.netAmount}", style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold, color = netColor)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val label = when {
+                    state.netSign > 0 -> "净借出"
+                    state.netSign < 0 -> "净负债"
+                    else -> "净头寸"
+                }
+                val color = when {
+                    state.netSign > 0 -> FinancialColors.up
+                    state.netSign < 0 -> FinancialColors.down
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
+                Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                val prefix = when {
+                    state.netSign > 0 -> "+¥"
+                    state.netSign < 0 -> "-¥"
+                    else -> "¥"
+                }
+                Text(
+                    "$prefix${state.netAmount}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
             }
         }
 
         item { Spacer(Modifier.height(80.dp)) }
     }
 
-    // 新增应收款弹窗
+    // 新增借出弹窗
     if (state.showAddReceivable) {
         ReceivableDialog(
-            title = "新增应收款",
-            onConfirm = { name, amount, expectedDate, note ->
-                viewModel.addReceivable(name, amount, expectedDate, note)
+            title = "新增借出",
+            onConfirm = { name, amount, date, note, deductFromCash ->
+                viewModel.addReceivable(name, amount, date, note, deductFromCash)
             },
             onDismiss = { viewModel.hideAddReceivable() }
         )
     }
 
-    // 编辑应收款弹窗
+    // 编辑借出弹窗
     if (state.showEditReceivable && state.editingReceivable != null) {
         val r = state.editingReceivable!!
         ReceivableDialog(
-            title = "编辑应收款",
+            title = "编辑借出",
             initial = r,
-            onConfirm = { name, amount, expectedDate, note ->
-                viewModel.updateReceivable(r.id, name, amount, expectedDate, note)
+            onConfirm = { name, amount, date, note, _ ->
+                viewModel.updateReceivable(r.id, name, amount, date, note)
             },
             onDismiss = { viewModel.hideEditReceivable() }
         )
@@ -199,8 +214,8 @@ fun CreditScreen(viewModel: CreditViewModel = hiltViewModel()) {
     if (state.showAddDebt) {
         DebtDialog(
             title = "新增负债",
-            onConfirm = { name, amount, interestRate, date, note ->
-                viewModel.addDebt(name, amount, interestRate, date, note)
+            onConfirm = { name, amount, date, note, addToCash ->
+                viewModel.addDebt(name, amount, date, note, addToCash)
             },
             onDismiss = { viewModel.hideAddDebt() }
         )
@@ -212,8 +227,8 @@ fun CreditScreen(viewModel: CreditViewModel = hiltViewModel()) {
         DebtDialog(
             title = "编辑负债",
             initial = d,
-            onConfirm = { name, amount, interestRate, date, note ->
-                viewModel.updateDebt(d.id, name, amount, interestRate, date, note)
+            onConfirm = { name, amount, date, note, _ ->
+                viewModel.updateDebt(d.id, name, amount, date, note)
             },
             onDismiss = { viewModel.hideEditDebt() }
         )
@@ -221,38 +236,60 @@ fun CreditScreen(viewModel: CreditViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun ReceivableCard(r: Receivable, multiplier: BigDecimal, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun SectionHeader(
+    title: String,
+    total: String,
+    count: Int,
+    accentColor: androidx.compose.ui.graphics.Color,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onAdd: () -> Unit
+) {
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onEdit,
+        modifier = Modifier.fillMaxWidth().clickable { onToggle() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
-        Row(Modifier.fillMaxWidth().padding(16.dp),
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(r.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.height(2.dp))
-                Text("${r.date} 借出", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (r.expectedDate != null) {
-                    Text("预计 ${r.expectedDate} 归还", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (r.note.isNotBlank()) {
-                    Text(r.note, style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(accentColor)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "${count}笔 · 未还",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(com.financial.freedom.ui.common.FormatUtils.formatAllocationValue(r.amount, multiplier),
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "¥$total",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = FinancialColors.up)
-                Spacer(Modifier.height(4.dp))
-                TextButton(onClick = onDelete) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = if (expanded) "收起" else "展开",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(8.dp))
+                IconButton(onClick = onAdd, modifier = Modifier.height(24.dp).width(24.dp)) {
+                    Icon(Icons.Filled.Add, contentDescription = "新增", tint = accentColor)
                 }
             }
         }
@@ -260,39 +297,170 @@ private fun ReceivableCard(r: Receivable, multiplier: BigDecimal, onEdit: () -> 
 }
 
 @Composable
-private fun DebtCard(d: Debt, multiplier: BigDecimal, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun EmptyHint(text: String) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        onClick = onEdit,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
-        Row(Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(d.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.height(2.dp))
-                Text("${d.date}", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (d.interestRate != null) {
-                    Text("利率 ${(d.interestRate * BigDecimal(100)).setScale(2)}%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text,
+            modifier = Modifier.padding(24.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ReceivableItem(
+    r: Receivable,
+    multiplier: BigDecimal,
+    onEdit: () -> Unit,
+    onMarkRepaid: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val statusText = if (r.status == "已还") "已还" else "未还"
+    val statusColor = if (r.status == "已还") MaterialTheme.colorScheme.onSurfaceVariant else FinancialColors.receivable
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(r.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(2.dp))
+                    Row {
+                        Text("${r.date}", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(" · $statusText", style = MaterialTheme.typography.labelSmall, color = statusColor)
+                    }
+                    if (r.note.isNotBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(r.note, style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                if (d.note.isNotBlank()) {
-                    Text(d.note, style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    com.financial.freedom.ui.common.FormatUtils.formatAllocationValue(r.amount, multiplier),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = FinancialColors.receivable
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (r.status != "已还") {
+                    TextButton(onClick = onMarkRepaid) {
+                        Text("对方已还款", style = MaterialTheme.typography.labelLarge, color = FinancialColors.receivable)
+                    }
+                } else {
+                    Spacer(Modifier.width(1.dp))
+                }
+                Box {
+                    TextButton(onClick = { menuExpanded = true }) {
+                        Text("···", style = MaterialTheme.typography.labelLarge)
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(text = { Text("编辑") }, onClick = { menuExpanded = false; onEdit() })
+                        DropdownMenuItem(text = { Text("删除") }, onClick = { menuExpanded = false; onDelete() })
+                    }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(com.financial.freedom.ui.common.FormatUtils.formatAllocationValue(d.amount, multiplier),
+        }
+    }
+}
+
+@Composable
+private fun DebtItem(
+    d: Debt,
+    multiplier: BigDecimal,
+    onEdit: () -> Unit,
+    onMarkPaid: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val statusText = if (d.status == "已还") "已还" else "未还"
+    val statusColor = if (d.status == "已还") MaterialTheme.colorScheme.onSurfaceVariant else FinancialColors.debt
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(d.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(2.dp))
+                    Row {
+                        Text("${d.date}", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(" · $statusText", style = MaterialTheme.typography.labelSmall, color = statusColor)
+                    }
+                    if (d.note.isNotBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(d.note, style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Text(
+                    com.financial.freedom.ui.common.FormatUtils.formatAllocationValue(d.amount, multiplier),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = FinancialColors.down)
-                Spacer(Modifier.height(4.dp))
-                TextButton(onClick = onDelete) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    fontWeight = FontWeight.Bold,
+                    color = FinancialColors.debt
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (d.status != "已还") {
+                    TextButton(onClick = onMarkPaid) {
+                        Text("我已还清", style = MaterialTheme.typography.labelLarge, color = FinancialColors.debt)
+                    }
+                } else {
+                    Spacer(Modifier.width(1.dp))
+                }
+                Box {
+                    TextButton(onClick = { menuExpanded = true }) {
+                        Text("···", style = MaterialTheme.typography.labelLarge)
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(text = { Text("编辑") }, onClick = { menuExpanded = false; onEdit() })
+                        DropdownMenuItem(text = { Text("删除") }, onClick = { menuExpanded = false; onDelete() })
+                    }
                 }
             }
         }
@@ -304,16 +472,19 @@ private fun DebtCard(d: Debt, multiplier: BigDecimal, onEdit: () -> Unit, onDele
 private fun ReceivableDialog(
     title: String,
     initial: Receivable? = null,
-    onConfirm: (String, BigDecimal, kotlinx.datetime.LocalDate?, String) -> Unit,
+    onConfirm: (String, BigDecimal, LocalDate, String, Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var amount by remember { mutableStateOf(initial?.amount?.toPlainString() ?: "") }
-    var expectedDate by remember { mutableStateOf(initial?.expectedDate?.toString() ?: "") }
+    var date by remember { mutableStateOf(initial?.date?.toString() ?: Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) }
     var note by remember { mutableStateOf(initial?.note ?: "") }
+    var deductFromCash by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
+
+    val isEdit = initial != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -321,99 +492,7 @@ private fun ReceivableDialog(
         text = {
             Column {
                 OutlinedTextField(value = name, onValueChange = { name = it },
-                    label = { Text("对方姓名") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = amount, onValueChange = { amount = it; error = null },
-                    label = { Text("金额") }, isError = error != null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true, modifier = Modifier.fillMaxWidth())
-                if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = expectedDate,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("预计归还日（选填）") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { showDatePicker = true }
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = note, onValueChange = { note = it },
-                    label = { Text("备注（选填）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val value = amount.toBigDecimalOrNull()
-                if (name.isBlank()) error = "请输入姓名"
-                else if (value == null || value <= BigDecimal.ZERO) error = "请输入有效金额"
-                else {
-                    val expDate = runCatching {
-                        kotlinx.datetime.LocalDate.parse(expectedDate)
-                    }.getOrNull()
-                    onConfirm(name, value, expDate, note)
-                }
-            }) { Text("确定") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
-    )
-
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val instant = Instant.fromEpochMilliseconds(millis)
-                        expectedDate = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
-                    }
-                    showDatePicker = false
-                }) { Text("确定") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("取消") }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun DebtDialog(
-    title: String,
-    initial: Debt? = null,
-    onConfirm: (String, BigDecimal, BigDecimal?, LocalDate, String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var name by remember { mutableStateOf(initial?.name ?: "") }
-    var amount by remember { mutableStateOf(initial?.amount?.toPlainString() ?: "") }
-    var date by remember { mutableStateOf(initial?.date?.toString() ?: "") }
-    var interestRate by remember { mutableStateOf(initial?.interestRate?.toPlainString() ?: "") }
-    var note by remember { mutableStateOf(initial?.note ?: "") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                OutlinedTextField(value = name, onValueChange = { name = it },
-                    label = { Text("来源（银行/个人）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    label = { Text("借款人") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = amount, onValueChange = { amount = it; error = null },
                     label = { Text("金额") }, isError = error != null,
@@ -441,26 +520,125 @@ private fun DebtDialog(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = interestRate, onValueChange = { interestRate = it },
-                    label = { Text("年利率（选填，如 0.0395 = 3.95%）") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = note, onValueChange = { note = it },
                     label = { Text("备注（选填）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (!isEdit) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { deductFromCash = !deductFromCash }) {
+                        Checkbox(checked = deductFromCash, onCheckedChange = { deductFromCash = it })
+                        Text("现金同步扣减（钱借出去了，现金减少）", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 val value = amount.toBigDecimalOrNull()
                 val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull()
-                if (name.isBlank()) error = "请输入来源"
+                if (name.isBlank()) error = "请输入借款人"
                 else if (value == null || value <= BigDecimal.ZERO) error = "请输入有效金额"
                 else if (parsedDate == null) error = "请选择日期"
-                else {
-                    val rate = interestRate.toBigDecimalOrNull()
-                    onConfirm(name, value, rate, parsedDate, note)
+                else onConfirm(name, value, parsedDate, note, deductFromCash)
+            }) { Text("确定") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val instant = Instant.fromEpochMilliseconds(millis)
+                        date = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+                    }
+                    showDatePicker = false
+                }) { Text("确定") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("取消") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun DebtDialog(
+    title: String,
+    initial: Debt? = null,
+    onConfirm: (String, BigDecimal, LocalDate, String, Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var amount by remember { mutableStateOf(initial?.amount?.toPlainString() ?: "") }
+    var date by remember { mutableStateOf(initial?.date?.toString() ?: Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) }
+    var note by remember { mutableStateOf(initial?.note ?: "") }
+    var addToCash by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
+    val isEdit = initial != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                OutlinedTextField(value = name, onValueChange = { name = it },
+                    label = { Text("债权人") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = amount, onValueChange = { amount = it; error = null },
+                    label = { Text("金额") }, isError = error != null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = date,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("日期") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { showDatePicker = true }
+                    )
                 }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = note, onValueChange = { note = it },
+                    label = { Text("备注（选填）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (!isEdit) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { addToCash = !addToCash }) {
+                        Checkbox(checked = addToCash, onCheckedChange = { addToCash = it })
+                        Text("现金同步到账（借到钱了，现金增加）", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val value = amount.toBigDecimalOrNull()
+                val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull()
+                if (name.isBlank()) error = "请输入债权人"
+                else if (value == null || value <= BigDecimal.ZERO) error = "请输入有效金额"
+                else if (parsedDate == null) error = "请选择日期"
+                else onConfirm(name, value, parsedDate, note, addToCash)
             }) { Text("确定") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }

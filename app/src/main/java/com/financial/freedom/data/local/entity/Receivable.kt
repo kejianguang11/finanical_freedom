@@ -14,6 +14,6 @@ data class Receivable(
     val name: String,
     @Serializable(with = BigDecimalSerializer::class) val amount: BigDecimal,
     @Serializable(with = LocalDateSerializer::class) val date: LocalDate,
-    @Serializable(with = LocalDateSerializer::class) val expectedDate: LocalDate? = null,
+    val status: String = "未还",
     val note: String = ""
 )

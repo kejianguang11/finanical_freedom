@@ -32,10 +32,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -50,7 +52,7 @@ fun AddPositionDialog(
 ) {
     var qtyText by rememberSaveable { mutableStateOf("") }
     var priceText by rememberSaveable { mutableStateOf("") }
-    var dateText by rememberSaveable { mutableStateOf("") }
+    var dateText by rememberSaveable { mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) }
     var deductFromCash by rememberSaveable { mutableStateOf(false) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val dpState = rememberDatePickerState()
@@ -164,7 +166,7 @@ fun ReducePositionDialog(
 ) {
     var qtyText by rememberSaveable { mutableStateOf("") }
     var priceText by rememberSaveable { mutableStateOf("") }
-    var dateText by rememberSaveable { mutableStateOf("") }
+    var dateText by rememberSaveable { mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) }
     var addToCash by rememberSaveable { mutableStateOf(false) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showCloseConfirm by rememberSaveable { mutableStateOf(false) }

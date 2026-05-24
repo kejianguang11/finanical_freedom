@@ -52,10 +52,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.financial.freedom.data.local.entity.Holding
 import com.financial.freedom.data.remote.SearchResult
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
 import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +75,7 @@ fun AddHoldingScreen(
     var quantity by rememberSaveable { mutableStateOf("") }
     var costPrice by rememberSaveable { mutableStateOf("") }
     var goldUnitPrice by rememberSaveable { mutableStateOf("") }  // 黄金单价（元/克）
-    var costDate by rememberSaveable { mutableStateOf("") }
+    var costDate by rememberSaveable { mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) }
     var note by rememberSaveable { mutableStateOf("") }
     var deductFromCash by rememberSaveable { mutableStateOf(false) }
 
@@ -294,7 +296,7 @@ fun AddHoldingScreen(
                                 type = "GOLD", symbol = "XAU", name = "黄金", market = "",
                                 currency = "CNY",
                                 quantity = grams,
-                                costPrice = grams.multiply(unitPrice),
+                                costPrice = unitPrice,
                                 costDate = LocalDate.parse(costDate),
                                 note = note
                             )

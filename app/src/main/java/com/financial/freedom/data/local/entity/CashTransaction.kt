@@ -14,5 +14,6 @@ data class CashTransaction(
     @Serializable(with = LocalDateSerializer::class) val date: LocalDate,
     @Serializable(with = BigDecimalSerializer::class) val amount: BigDecimal,
     val type: String,
-    val note: String = ""
+    val note: String = "",
+    val relatedId: Long? = null
 )

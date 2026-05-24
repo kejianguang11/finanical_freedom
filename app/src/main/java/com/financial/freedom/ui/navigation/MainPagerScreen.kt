@@ -100,6 +100,7 @@ fun MainPagerScreen(
     pagerState: androidx.compose.foundation.pager.PagerState,
     coroutineScope: CoroutineScope,
     onHoldingClick: (Long) -> Unit = {},
+    goldClick: (Long) -> Unit,
     onBankClick: (String, String) -> Unit = { _, _ -> },
     onAddDeposit: () -> Unit = {},
     onAddHolding: (String) -> Unit = {},
@@ -142,6 +143,7 @@ fun MainPagerScreen(
                 pagerScope = coroutineScope,
                 pagerState = pagerState,
                 onHoldingClick = onHoldingClick,
+                goldClick = goldClick,
                 onBankClick = onBankClick,
                 onAddDeposit = onAddDeposit,
                 onAddHolding = onAddHolding
@@ -156,6 +158,7 @@ private fun PageContent(
     pagerScope: CoroutineScope,
     pagerState: androidx.compose.foundation.pager.PagerState,
     onHoldingClick: (Long) -> Unit,
+    goldClick: (Long) -> Unit,
     onBankClick: (String, String) -> Unit,
     onAddDeposit: () -> Unit,
     onAddHolding: (String) -> Unit
@@ -175,7 +178,7 @@ private fun PageContent(
             onAddHolding = { onAddHolding("FUND") }
         )
         PagerPage.GOLD -> GoldPage(
-            onHoldingClick = onHoldingClick,
+            onHoldingClick = goldClick,
             onAddHolding = { onAddHolding("GOLD") }
         )
         PagerPage.DEPOSIT -> DepositsPage(onBankClick = onBankClick, onAddDeposit = onAddDeposit)
@@ -274,7 +277,7 @@ private fun CategoryNavStrip(
                     todayColor = MaterialTheme.colorScheme.onSurface
                 }
                 currentPage == 6 -> {
-                    summaryLabel = "应收净额"
+                    summaryLabel = "净借出"
                     summaryValue = ""
                     summaryToday = ""
                     todayColor = MaterialTheme.colorScheme.onSurface

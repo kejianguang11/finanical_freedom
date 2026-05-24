@@ -13,6 +13,9 @@ interface PriceSnapshotDao {
     @Query("SELECT * FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId AND date BETWEEN :start AND :end ORDER BY date ASC")
     fun getByHoldingAndDateRange(holdingId: Long, start: LocalDate, end: LocalDate, accountId: Long): Flow<List<PriceSnapshot>>
 
+    @Query("SELECT * FROM price_snapshots WHERE holdingId = :holdingId AND accountId = :accountId AND date BETWEEN :start AND :end ORDER BY date ASC")
+    suspend fun getByDateRange(holdingId: Long, start: LocalDate, end: LocalDate, accountId: Long): List<PriceSnapshot>
+
     @Query("SELECT * FROM price_snapshots WHERE holdingId = :holdingId AND date = :date AND accountId = :accountId LIMIT 1")
     suspend fun getByHoldingAndDate(holdingId: Long, date: LocalDate, accountId: Long): PriceSnapshot?
 

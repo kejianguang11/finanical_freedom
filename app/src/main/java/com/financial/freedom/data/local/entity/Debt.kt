@@ -14,6 +14,6 @@ data class Debt(
     val name: String,
     @Serializable(with = BigDecimalSerializer::class) val amount: BigDecimal,
     @Serializable(with = LocalDateSerializer::class) val date: LocalDate,
-    @Serializable(with = BigDecimalSerializer::class) val interestRate: BigDecimal? = null,
+    val status: String = "未还",
     val note: String = ""
 )

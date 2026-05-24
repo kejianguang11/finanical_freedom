@@ -32,6 +32,8 @@ sealed interface Route {
 
     @Serializable data class EditHolding(val holdingId: Long) : Route
 
+    @Serializable data class GoldDetail(val holdingId: Long) : Route
+
     @Serializable data object Cash : Route
 
     @Serializable data object Credit : Route

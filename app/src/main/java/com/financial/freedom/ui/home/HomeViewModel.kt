@@ -138,7 +138,7 @@ class HomeViewModel @Inject constructor(
             Log.d("HomeVM", "init fast path start")
 
             // 0. 检查数据版本：计算逻辑变更时强制全量回填
-            val dataVersionCurrent = 2
+            val dataVersionCurrent = 3  // v3: force gold earnings backfill with Sina AU0 history API
             val prefs = context.getSharedPreferences("account_prefs", Context.MODE_PRIVATE)
             val dataVersionStored = prefs.getInt("data_version", 0)
             val needsDataMigration = dataVersionStored < dataVersionCurrent

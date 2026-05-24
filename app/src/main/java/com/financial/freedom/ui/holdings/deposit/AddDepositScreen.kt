@@ -46,10 +46,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.financial.freedom.data.local.entity.Deposit
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
 import java.math.BigDecimal
 
 val currencies = listOf("CNY", "USD", "JPY", "HKD", "EUR", "GBP")
@@ -64,7 +66,7 @@ fun AddDepositScreen(
     var currency by rememberSaveable { mutableStateOf("CNY") }
     var principal by rememberSaveable { mutableStateOf("") }
     var rate by rememberSaveable { mutableStateOf("") }
-    var startDate by rememberSaveable { mutableStateOf("") }
+    var startDate by rememberSaveable { mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) }
     var maturityDate by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var deductFromCash by rememberSaveable { mutableStateOf(false) }

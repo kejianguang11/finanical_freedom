@@ -54,6 +54,23 @@ object FormatUtils {
     }
 
     /**
+     * Format a decimal value (like grams/shares) with up to 4 decimal places,
+     * trimming trailing zeros and grouping integer part with commas.
+     */
+    fun formatWithDecimals(value: BigDecimal): String {
+        val rounded = value.setScale(4, RoundingMode.HALF_UP)
+        val stripped = rounded.stripTrailingZeros()
+        val abs = stripped.abs()
+        val intPart = abs.setScale(0, RoundingMode.DOWN).toPlainString().removeSuffix(".0")
+        val intFormatted = intPart.reversed().chunked(3).joinToString(",").reversed()
+        val fracPart = abs.subtract(abs.setScale(0, RoundingMode.DOWN))
+        val sign = if (stripped < BigDecimal.ZERO) "-" else ""
+        if (fracPart == BigDecimal.ZERO) return "$sign$intFormatted"
+        val fracStr = fracPart.toPlainString().removePrefix("0.")
+        return "$sign$intFormatted.$fracStr"
+    }
+
+    /**
      * Parse a formatted money string back to BigDecimal.
      */
     fun parseMoneyValue(s: String): BigDecimal? {

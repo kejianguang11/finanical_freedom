@@ -15,7 +15,7 @@ class DebtRepository @Inject constructor(
 
     suspend fun getTotal(accountId: Long): BigDecimal {
         val all = dao.getAllList(accountId)
-        return all.fold(BigDecimal.ZERO) { acc, d -> acc.add(d.amount) }
+        return all.filter { it.status == "未还" }.fold(BigDecimal.ZERO) { acc, d -> acc.add(d.amount) }
     }
 
     suspend fun getById(id: Long, accountId: Long): Debt? = dao.getById(id, accountId)

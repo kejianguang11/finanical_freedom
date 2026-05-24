@@ -31,7 +31,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "financial_freedom.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
 
     @Provides fun provideDepositDao(db: AppDatabase): DepositDao = db.depositDao()
@@ -140,6 +140,51 @@ object DatabaseModule {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE daily_summaries ADD COLUMN netWorth TEXT NOT NULL DEFAULT '0'")
             db.execSQL("ALTER TABLE daily_summaries ADD COLUMN cashBalance TEXT NOT NULL DEFAULT '0'")
+        }
+    }
+
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // CashTransaction: 添加 relatedId 列
+            db.execSQL("ALTER TABLE cash_transactions ADD COLUMN relatedId INTEGER")
+
+            // Receivable: 重建表，移除 expectedDate，添加 status
+            db.execSQL("""
+                CREATE TABLE receivables_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    accountId INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    amount TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT '未还'
+                )
+            """)
+            db.execSQL("""
+                INSERT INTO receivables_new (id, accountId, name, amount, date, note, status)
+                SELECT id, accountId, name, amount, date, note, '未还' FROM receivables
+            """)
+            db.execSQL("DROP TABLE receivables")
+            db.execSQL("ALTER TABLE receivables_new RENAME TO receivables")
+
+            // Debt: 重建表，移除 interestRate，添加 status
+            db.execSQL("""
+                CREATE TABLE debts_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    accountId INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    amount TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT '未还'
+                )
+            """)
+            db.execSQL("""
+                INSERT INTO debts_new (id, accountId, name, amount, date, note, status)
+                SELECT id, accountId, name, amount, date, note, '未还' FROM debts
+            """)
+            db.execSQL("DROP TABLE debts")
+            db.execSQL("ALTER TABLE debts_new RENAME TO debts")
         }
     }
 }

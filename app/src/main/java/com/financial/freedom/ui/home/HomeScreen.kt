@@ -251,7 +251,7 @@ fun HomeScreen(
                             allocationItem("投资", investmentValue, totalAllocation, FinancialColors.gold),
                             allocationItem("存款", depositValue, totalAllocation, FinancialColors.deposit),
                             allocationItem("现金", cashValue, totalAllocation, FinancialColors.cash),
-                            allocationItem("应收", receivableValue, totalAllocation, FinancialColors.receivable)
+                            allocationItem("借出", receivableValue, totalAllocation, FinancialColors.receivable)
                         ).sortedByDescending { it.value }
                     )
                     Spacer(Modifier.height(20.dp))
@@ -696,7 +696,7 @@ private fun NetWorthTrendCard(
         trendData.map { it.copy(totalValueCNY = it.dayChange) }
     }
 
-    // 总资产折线：用 netWorth（含现金+应收-负债），而非 totalValueCNY（仅投资+存款）
+    // 总资产折线：用 netWorth（含现金+借出-负债），而非 totalValueCNY（仅投资+存款）
     val totalAssetsData = remember(trendData) {
         trendData.map { it.copy(totalValueCNY = it.netWorth) }
     }

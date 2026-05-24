@@ -128,23 +128,59 @@ class GoldProvider @Inject constructor(
     }
 
     override suspend fun fetchHistory(symbol: String, start: LocalDate, end: LocalDate): List<PriceResult> {
-        // 优先用东方财富 K 线 API 获取 AU9999 历史金价（国内金价对所有黄金持仓通用）
-        val emResult = fetchAU9999History(start, end)
-        if (emResult.isNotEmpty()) return emResult
-        // 降级：逐日拉取
-        val results = mutableListOf<PriceResult>()
-        var current = start
-        while (current <= end) {
-            fetchPrice(symbol, current)?.let { results.add(it) }
-            current = current.plus(1, kotlinx.datetime.DateTimeUnit.DAY)
-        }
-        return results
+        // 优先用新浪 AU0 期货日K线（与 AU9999 价格高度一致，单位：元/克）
+        val sina = fetchSinaAU0History(start, end)
+        if (sina.isNotEmpty()) return sina
+
+        // 降级：东方财富 K 线 API（AU9999 可能不被该接口支持）
+        return fetchAU9999History(start, end)
     }
 
     /**
-     * 从东方财富 K 线 API 获取 AU9999 历史价格
-     * https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=118.AU9999&fields1=f1&fields2=f51,f52,f53&klt=101&beg=20260501&end=20260521
-     * f51=日期 f52=开盘 f53=收盘 f54=最高 f55=最低 f56=成交量 f57=成交额
+     * 从新浪财经获取 AU0（上期所黄金期货主力）日K线历史数据
+     * AU0 与 AU9999 价格高度一致（套利维持），均为元/克
+     */
+    private suspend fun fetchSinaAU0History(start: LocalDate, end: LocalDate): List<PriceResult> {
+        return try {
+            val url = "https://stock2.finance.sina.com.cn/futures/api/jsonp.php" +
+                "/var%20_AU0=/InnerFuturesNewService.getDailyKLine?symbol=AU0"
+            Log.d(TAG, "Fetching Sina AU0 history: $url")
+
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Referer", "https://finance.sina.com.cn")
+                .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                .get().build()
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: return emptyList()
+            Log.d(TAG, "Sina AU0 history response: ${body.take(200)}")
+
+            // JSONP 格式: var _AU0=([{...},{...},...]);
+            val jsonArrayStr = body
+                .substringAfter("=(")
+                .substringBeforeLast(");")
+            if (jsonArrayStr.isBlank()) return emptyList()
+
+            val jsonArray = json.parseToJsonElement(jsonArrayStr).jsonArray
+
+            jsonArray.mapNotNull { element ->
+                val obj = element.jsonObject
+                val dateStr = obj["d"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val date = LocalDate.parse(dateStr)
+                if (date < start || date > end) return@mapNotNull null
+                val closeStr = obj["c"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val close = BigDecimal(closeStr)
+                PriceResult(symbol = "AU9999", price = close, currency = "CNY", date = date, name = "上海金AU9999")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Sina AU0 history fetch FAILED: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * 从东方财富 K 线 API 获取 AU9999 历史价格（降级方案）
+     * 注意：该接口可能对 AU9999 返回 data: null（rc: 102）
      */
     private suspend fun fetchAU9999History(start: LocalDate, end: LocalDate): List<PriceResult> {
         return try {
@@ -153,7 +189,7 @@ class GoldProvider @Inject constructor(
             val url = "https://push2his.eastmoney.com/api/qt/stock/kline/get" +
                 "?secid=118.AU9999&fields1=f1&fields2=f51,f52,f53&klt=101&beg=$beg&end=$endStr"
 
-            Log.d(TAG, "Fetching AU9999 history: $url")
+            Log.d(TAG, "Fetching AU9999 history (fallback): $url")
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Referer", "https://quote.eastmoney.com")

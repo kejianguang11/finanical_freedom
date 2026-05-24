@@ -20,6 +20,9 @@ interface HoldingDao {
     @Query("SELECT * FROM holdings WHERE type = :type AND accountId = :accountId AND status = 'active' ORDER BY name")
     fun getByType(type: String, accountId: Long): Flow<List<Holding>>
 
+    @Query("SELECT * FROM holdings WHERE type = :type AND accountId = :accountId AND status = 'active' ORDER BY name")
+    suspend fun getByTypeList(type: String, accountId: Long): List<Holding>
+
     @Query("SELECT * FROM holdings WHERE id = :id AND accountId = :accountId")
     suspend fun getById(id: Long, accountId: Long): Holding?
 
