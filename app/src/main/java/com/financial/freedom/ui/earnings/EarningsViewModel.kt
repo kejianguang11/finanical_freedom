@@ -454,7 +454,7 @@ class EarningsViewModel @Inject constructor(
         for ((year, yearSummaries) in summariesByYear) {
             val lastSummary = yearSummaries.maxByOrNull { it.date }
             if (lastSummary != null) {
-                yearEndValues[year] = lastSummary.totalValueCNY
+                yearEndValues[year] = lastSummary.netWorth
             }
         }
 
