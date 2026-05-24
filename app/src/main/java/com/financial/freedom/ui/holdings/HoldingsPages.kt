@@ -500,8 +500,14 @@ private fun BuyRecordItem(
 
             Spacer(Modifier.height(4.dp))
 
+            // 非人民币显示原币价格
+            val isForeign = record.currency != "CNY"
+            val pricePrefix = when (record.currency) { "USD" -> "$" else -> "¥" }
+            val showPrice = if (isForeign) record.originalPrice else record.price
+            val showCost = if (isForeign) record.originalCost else record.cost
+            val showCurrentVal = if (isForeign) record.originalCurrentValue else record.currentValue
             Text(
-                "${record.quantity} 股 @ ${record.price}",
+                "${record.quantity} 股 @ $pricePrefix$showPrice",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -516,12 +522,12 @@ private fun BuyRecordItem(
             ) {
                 Column {
                     Text("成本", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(record.cost, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                    Text("$pricePrefix$showCost", fontSize = 12.sp, fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("当前市值", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(record.currentValue, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                    Text("$pricePrefix$showCurrentVal", fontSize = 12.sp, fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface)
                 }
             }

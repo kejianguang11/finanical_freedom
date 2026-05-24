@@ -357,11 +357,15 @@ fun HoldingDetailScreen(
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
             ) {
                 Column(Modifier.padding(16.dp)) {
+                    val currencySymbol = when (state.market) { "US" -> "$" "HK" -> "HK$" else -> "¥" }
+                    val isForeign = state.currency != "CNY"
+                    val showCostPrice = if (isForeign) state.originalCostPrice else state.costPrice
+                    val showTotalCost = if (isForeign) state.originalTotalCost else state.totalCost
                     InfoRow("持有数量", state.quantity)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    InfoRow("成本价", "¥${state.costPrice}")
+                    InfoRow("成本价", "$currencySymbol$showCostPrice")
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    InfoRow("总成本", "¥${state.totalCost}")
+                    InfoRow("总成本", "$currencySymbol$showTotalCost")
                 }
             }
 
@@ -375,6 +379,7 @@ fun HoldingDetailScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(8.dp))
+                val txnCurrencySymbol = when (state.market) { "US" -> "$" "HK" -> "HK$" else -> "¥" }
                 state.transactions.take(5).forEach { txn ->
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -385,7 +390,7 @@ fun HoldingDetailScreen(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            "${txn.quantity} × ¥${txn.price}",
+                            "${txn.quantity} × $txnCurrencySymbol${txn.price}",
                             fontWeight = FontWeight.Medium
                         )
                     }

@@ -93,7 +93,11 @@ data class BuyRecordDisplay(
     val currentValue: String,
     val pnl: String,
     val pnlPct: String,
-    val isUp: Boolean
+    val isUp: Boolean,
+    val originalPrice: String,
+    val originalCost: String,
+    val originalCurrentValue: String,
+    val currency: String
 )
 
 // v17: 股票/基金组展示数据
@@ -421,7 +425,11 @@ class HoldingsViewModel @Inject constructor(
                             currentValue = formatMoney(currentVal),
                             pnl = formatSigned(pnl),
                             pnlPct = "${pnlPct.abs().setScale(2, RoundingMode.HALF_UP)}%",
-                            isUp = pnl >= BigDecimal.ZERO
+                            isUp = pnl >= BigDecimal.ZERO,
+                            originalPrice = formatMoney(t.price),
+                            originalCost = formatMoney(cost.setScale(2, RoundingMode.HALF_UP)),
+                            originalCurrentValue = formatMoney(currentPrice.multiply(t.quantity).setScale(2, RoundingMode.HALF_UP)),
+                            currency = first.currency
                         )
                     )
                 }
