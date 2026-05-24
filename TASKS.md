@@ -40,6 +40,7 @@
 | 29 - 黄金 v24 两层重设计 | pending | 6 个子任务（概览卡片 + 独立详情 + 减仓 + 删除） |
 | 30 - 黄金走势图坐标轴标注 | in_progress | Y轴价格标签 + 网格线 + X轴日期（GoldDetailChart + GoldChartWithBuyMarkers） |
 | 31 - 年度收益/总资产切换 | done | 3 个子任务（年视图 pill 切换 + 数据模型 + UI） ✅ |
+| 32 - 股票卡片信息层级重设计 & 美股美元双显 | done | 6 个子任务（v26） ✅ |
 
 ---
 
@@ -1548,4 +1549,46 @@
 ### 31.4 编译验证
 - [x] `./gradlew assembleDebug` 编译通过
 - [x] 安装到设备验证年视图切换
-- [ ] 提交 GitHub
+- [x] 提交 GitHub
+
+---
+
+## 阶段 32：股票卡片信息层级重设计 & 美股美元双显（v26 — 2026-05-24）
+
+> 设计原则：L0 持仓总额 > L1 当前价格 ≈ 当日收益 > L2 其他。美股同步显示美元原价。
+> 详见 UI_DESIGN.md 7.1、7.8、13.5 节。
+
+### 32.1 数据层 — Display Models 新增 originalPrice 字段
+- [x] `HoldingsViewModel.kt`：`HoldingDisplay` 新增 `originalPrice: String`
+- [x] `HoldingsViewModel.kt`：`HoldingGroupDisplay` 新增 `originalPrice: String`
+- [x] `HoldingDetailViewModel.kt`：`DetailUiState` 新增 `originalPrice: String`
+- [x] ViewModel 构造数据时保留原始货币价格（不经过汇率换算）
+
+### 32.2 HoldingGroupCard 重设计（HoldingsPages.kt）
+- [x] 持仓市值提升为 L0，22sp Bold，放卡片最显眼位置
+- [x] 现价提升为 L1，18sp Bold + 当日收益 16sp SemiBold 涨跌色同行
+- [x] 美股（market == "US"）显示美元价格行：`≈$xxx USD`（14sp，绿色）
+- [x] 成本/持仓盈亏降为 L2，小字灰色
+- [x] 保持迷你走势图
+
+### 32.3 HoldingCard 重设计（HoldingsScreen.kt）
+- [x] 市值提升为 L0，20sp Bold
+- [x] 现价提升为 L1，16sp Bold + 当日收益 14sp SemiBold 涨跌色同行
+- [x] 美股显示美元价格行：`≈$xxx USD`（13sp，绿色）
+- [x] 成本/持仓盈亏降为 L2，12sp
+
+### 32.4 HoldingDetailScreen 重设计（HoldingDetailScreen.kt）
+- [x] 现价提升为 32sp ExtraBold，独占一行，页面焦点
+- [x] 当日涨跌紧随其后，20sp SemiBold 涨跌色
+- [x] 美股显示美元价格行：`≈$xxx USD`（16sp，绿色）
+- [x] 市值移到现价下方，18sp Bold
+- [x] 成本/持仓盈亏降为辅助信息
+
+### 32.5 编译安装验证
+- [x] `./gradlew assembleDebug` 编译通过
+- [x] 安装到设备，验证股票/基金/黄金卡片信息层级
+- [x] 验证美股美元双显（Apple 等 US 市场股票）
+- [x] 验证 A 股不显示美元行
+
+### 32.6 提交 GitHub
+- [ ] `git add` + `git commit` + `git push`

@@ -103,41 +103,89 @@ fun HoldingDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // ── 当前市值（Hero）──
+            // ── L1: 现价 Hero ──
             Text(
-                "当前市值",
+                "现价",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                "¥ ${state.marketValue}",
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val changeColor = if (state.isUp) FinancialColors.up else FinancialColors.down
+            val pricePctClean = state.priceChangePct.removeSuffix("%")
+            val pricePctVal = pricePctClean.toDoubleOrNull() ?: 0.0
+            val priceChgColor = when {
+                pricePctVal > 0 -> FinancialColors.up
+                pricePctVal < 0 -> FinancialColors.down
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "${state.todayChange} (${state.todayChangePct})",
-                    color = changeColor,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
+                    "¥${state.currentPrice}",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(Modifier.width(6.dp))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        state.priceChangePct,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = priceChgColor
+                    )
+                    Text(
+                        state.priceChange,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = priceChgColor
+                    )
+                }
+            }
+
+            // 美股：美元价格
+            if (state.market == "US") {
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    "今日",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp
+                    "≈$${state.originalPrice} USD",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = FinancialColors.up
                 )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // ── L0: 市值 + 今日 ──
+            val todayColor = if (state.isUp) FinancialColors.up else FinancialColors.down
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("市值", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "¥${state.marketValue}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("今日", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "${state.todayChange} (${state.todayChangePct})",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = todayColor
+                    )
+                }
             }
 
             Spacer(Modifier.height(20.dp))
 
-            // ── 现价 + 走势图 ──
+            // ── 走势图 ──
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth().height(240.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -145,49 +193,6 @@ fun HoldingDetailScreen(
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    // 现价行：单价 + 今日涨跌额/涨幅 同行
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "现价",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "¥${state.currentPrice}",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            val pricePctClean = state.priceChangePct.removeSuffix("%")
-                            val pricePctVal = pricePctClean.toDoubleOrNull() ?: 0.0
-                            val priceChgColor = when {
-                                pricePctVal > 0 -> FinancialColors.up
-                                pricePctVal < 0 -> FinancialColors.down
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                            Text(
-                                text = state.priceChange,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                                color = priceChgColor
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "(${state.priceChangePct})",
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 13.sp,
-                                color = priceChgColor
-                            )
-                        }
-                    }
 
                     Spacer(Modifier.height(4.dp))
 

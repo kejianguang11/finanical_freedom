@@ -61,7 +61,9 @@ data class HoldingDisplay(
     val todayChange: String,
     val isUp: Boolean,
     val marketValue: String,
-    val currency: String
+    val currency: String,
+    val market: String,
+    val originalPrice: String
 )
 
 // v17: 银行组展示数据
@@ -113,7 +115,8 @@ data class HoldingGroupDisplay(
     val buyRecords: List<BuyRecordDisplay>,
     val mainHoldingId: Long,
     val priceHistory: List<BigDecimal> = emptyList(),
-    val sectorColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color(0xFF546E7A)
+    val sectorColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color(0xFF546E7A),
+    val originalPrice: String
 )
 
 data class HoldingsUiState(
@@ -472,7 +475,8 @@ class HoldingsViewModel @Inject constructor(
                 buyRecords = buyRecords,
                 mainHoldingId = first.id,
                 priceHistory = priceHistory,
-                sectorColor = sectorColor
+                sectorColor = sectorColor,
+                originalPrice = formatMoney(currentPrice)
             )
         }.sortedByDescending { parseMoneyValue(it.marketValue) }
     }
@@ -605,7 +609,9 @@ class HoldingsViewModel @Inject constructor(
             todayChange = formatSigned(todayChange),
             isUp = totalPnL >= BigDecimal.ZERO,
             marketValue = formatMoney(marketValue),
-            currency = h.currency
+            currency = h.currency,
+            market = h.market,
+            originalPrice = formatMoney(currentPrice)
         )
     }
 

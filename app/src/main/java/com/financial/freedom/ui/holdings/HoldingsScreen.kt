@@ -396,6 +396,7 @@ fun HoldingCard(holding: HoldingDisplay, onClick: () -> Unit = {}) {
                     .background(typeColor, RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
             )
             Column(Modifier.padding(16.dp).weight(1f)) {
+                // 头部：名称 + symbol + 持有数量
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -407,38 +408,70 @@ fun HoldingCard(holding: HoldingDisplay, onClick: () -> Unit = {}) {
                     Text("持有 ${holding.quantity}", style = MaterialTheme.typography.labelMedium,
                         color = typeColor, fontWeight = FontWeight.SemiBold)
                 }
-                Spacer(Modifier.height(6.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("成本 ${holding.costPrice}", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("现价 ${holding.currentPrice}", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+
                 Spacer(Modifier.height(8.dp))
-                val valueLabel = if (holding.currency != "CNY") "市值 (¥${holding.marketValue})" else "市值 ¥${holding.marketValue}"
-                Text(valueLabel, style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(Modifier.height(12.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text("持仓盈亏", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(2.dp))
-                        val pnlColor = if (holding.isUp) FinancialColors.up else FinancialColors.down
-                        Text(holding.totalPnL, style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold, color = pnlColor)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("今日", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(2.dp))
-                        val todayColor = if (holding.isUp) FinancialColors.up else FinancialColors.down
-                        Text(holding.todayChange, style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold, color = todayColor)
-                    }
+
+                // L0: 市值
+                Text(
+                    "市值 ¥${holding.marketValue}",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(Modifier.height(6.dp))
+
+                // L1: 现价 + 今日涨跌
+                val todayColor = if (holding.isUp) FinancialColors.up else FinancialColors.down
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "现价 ¥${holding.currentPrice}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        holding.todayChange,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = todayColor
+                    )
+                }
+
+                // 美股：美元价格
+                if (holding.market == "US") {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "≈$${holding.originalPrice} USD",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = FinancialColors.up
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // L2: 成本 + 持仓盈亏
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "成本 ¥${holding.costPrice}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "持仓盈亏 ${holding.totalPnL}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (holding.isUp) FinancialColors.up else FinancialColors.down
+                    )
                 }
             }
         }

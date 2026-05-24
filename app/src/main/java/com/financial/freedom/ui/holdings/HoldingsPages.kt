@@ -99,23 +99,7 @@ fun FundPage(
     )
 }
 
-// ===== Gold Page (Pager page 3) =====
-@Composable
-fun GoldPage(
-    onHoldingClick: (Long) -> Unit = {},
-    onAddHolding: () -> Unit = {},
-    viewModel: HoldingsViewModel = hiltViewModel()
-) {
-    val state by viewModel.uiState.collectAsState()
-    HoldingListPage(
-        items = state.golds,
-        itemKey = { "gold_${it.id}" },
-        onHoldingClick = onHoldingClick,
-        onAddHolding = onAddHolding,
-        emptyTitle = "暂无黄金",
-        emptySubtitle = "点击 + 添加黄金持仓"
-    )
-}
+// ===== Gold Page (Pager page 3) — defined in GoldScreen.kt (v23) =====
 
 // ===== Deposits Page (Pager page 4) — v18 合并持有中+已到期 =====
 @Composable
@@ -313,7 +297,7 @@ private fun HoldingGroupCard(
 
                 Spacer(Modifier.height(10.dp))
 
-                // 核心信息：市值（大字号）+ 今日涨跌
+                // L0: 持仓市值
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -328,19 +312,48 @@ private fun HoldingGroupCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // L1: 现价 + 今日涨跌
+                val todayColor = if (group.isUp) FinancialColors.up else FinancialColors.down
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "现价 ${group.currentPrice}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             group.todayChange,
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (group.isUp) FinancialColors.up else FinancialColors.down
+                            color = todayColor
                         )
                         Text(
-                            "今日 ${group.todayChangePct}",
-                            fontSize = 12.sp,
-                            color = if (group.isUp) FinancialColors.up else FinancialColors.down
+                            group.todayChangePct,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = todayColor
                         )
                     }
+                }
+
+                // 美股：美元价格
+                if (group.market == "US") {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "≈$${group.originalPrice} USD",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = FinancialColors.up
+                    )
                 }
 
                 // 迷你走势图
@@ -359,7 +372,7 @@ private fun HoldingGroupCard(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 Spacer(Modifier.height(10.dp))
 
-                // 持仓盈亏 + 持有信息
+                // L2: 持仓盈亏 + 持有信息
                 val unitLabel = if (group.type == "FUND") "份" else "股"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -369,8 +382,8 @@ private fun HoldingGroupCard(
                     Column {
                         Text(
                             group.totalPnL,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
                             color = if (group.isUp) FinancialColors.up else FinancialColors.down
                         )
                         Text(
@@ -379,18 +392,11 @@ private fun HoldingGroupCard(
                             color = if (group.isUp) FinancialColors.up else FinancialColors.down
                         )
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            "持有 ${group.totalQuantity} $unitLabel · 均价 ${group.avgCost}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            "现价 ${group.currentPrice}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        "持有 ${group.totalQuantity} $unitLabel · 均价 ${group.avgCost}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 // 买入记录展开/折叠
