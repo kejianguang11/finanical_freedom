@@ -28,6 +28,8 @@ sealed interface Route {
 
     @Serializable data class BankDeposits(val bankName: String, val status: String) : Route
 
+    @Serializable data object MaturedDeposits : Route
+
     @Serializable data class AddHolding(val type: String) : Route  // STOCK / FUND / GOLD
 
     @Serializable data class EditHolding(val holdingId: Long) : Route

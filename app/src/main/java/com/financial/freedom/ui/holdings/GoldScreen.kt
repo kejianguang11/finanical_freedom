@@ -258,7 +258,7 @@ private fun GoldAggregatedCard(
                         "${state.todayChange} (${state.todayChangePct})",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (state.isUp) FinancialColors.up else FinancialColors.down
+                        color = if (state.isTodayUp) FinancialColors.up else FinancialColors.down
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {

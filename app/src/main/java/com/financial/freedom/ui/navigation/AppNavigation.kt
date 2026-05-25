@@ -20,6 +20,7 @@ import com.financial.freedom.ui.holdings.HoldingDetailScreen
 import com.financial.freedom.ui.holdings.deposit.AddDepositScreen
 import com.financial.freedom.ui.holdings.deposit.BankDepositsScreen
 import com.financial.freedom.ui.holdings.deposit.EditDepositScreen
+import com.financial.freedom.ui.holdings.deposit.MaturedDepositsScreen
 
 @Composable
 fun AppNavHost(
@@ -87,7 +88,8 @@ fun AppNavHost(
                 goldClick = { id -> navController.navigate(Route.GoldDetail(id)) },
                 onBankClick = { bank, status -> navController.navigate(Route.BankDeposits(bank, status)) },
                 onAddDeposit = { navController.navigate(Route.AddDeposit) },
-                onAddHolding = { type -> navController.navigate(Route.AddHolding(type)) }
+                onAddHolding = { type -> navController.navigate(Route.AddHolding(type)) },
+                onMaturedDepositsClick = { navController.navigate(Route.MaturedDeposits) }
             )
         }
 
@@ -104,7 +106,8 @@ fun AppNavHost(
                 goldClick = { id -> navController.navigate(Route.GoldDetail(id)) },
                 onBankClick = { bank, status -> navController.navigate(Route.BankDeposits(bank, status)) },
                 onAddDeposit = { navController.navigate(Route.AddDeposit) },
-                onAddHolding = { type -> navController.navigate(Route.AddHolding(type)) }
+                onAddHolding = { type -> navController.navigate(Route.AddHolding(type)) },
+                onMaturedDepositsClick = { navController.navigate(Route.MaturedDeposits) }
             )
         }
 
@@ -146,6 +149,12 @@ fun AppNavHost(
                 onBack = { navController.popBackStack() },
                 onEditDeposit = { id -> navController.navigate(Route.EditDeposit(id)) },
                 onAddDeposit = { navController.navigate(Route.AddDeposit) }
+            )
+        }
+
+        composable<Route.MaturedDeposits> {
+            MaturedDepositsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

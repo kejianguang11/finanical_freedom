@@ -189,7 +189,7 @@ fun GoldDetailScreen(
                                 Text(
                                     "${state.todayChange} (${state.todayChangePct})",
                                     fontSize = 13.sp,
-                                    color = if (state.isUp) FinancialColors.up else FinancialColors.down
+                                    color = if (state.isTodayUp) FinancialColors.up else FinancialColors.down
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
@@ -305,12 +305,12 @@ fun GoldDetailScreen(
                                 state.todayChange,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (state.isUp) FinancialColors.up else FinancialColors.down
+                                color = if (state.isTodayUp) FinancialColors.up else FinancialColors.down
                             )
                             Text(
                                 state.todayChangePct,
                                 fontSize = 12.sp,
-                                color = if (state.isUp) FinancialColors.up else FinancialColors.down
+                                color = if (state.isTodayUp) FinancialColors.up else FinancialColors.down
                             )
                         }
                     }

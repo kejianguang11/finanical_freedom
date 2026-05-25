@@ -177,6 +177,11 @@ class HomeViewModel @Inject constructor(
                 }
                 Log.d("HomeVM", "backfill done in ${System.currentTimeMillis() - backfillStart}ms")
 
+                // 确保到期存款处理（每次启动都检查）
+                withContext(Dispatchers.IO) {
+                    backfillEngine.processDepositMaturities(today, accountId)
+                }
+
                 withContext(Dispatchers.IO) {
                     fetchLivePrices(accountId)
                 }

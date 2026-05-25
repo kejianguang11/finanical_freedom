@@ -56,6 +56,7 @@ data class GoldUiState(
     val todayChange: String = "+0.00",
     val todayChangePct: String = "+0.00%",
     val isUp: Boolean = false,
+    val isTodayUp: Boolean = false,
     val priceHistory: List<PriceSnapshot> = emptyList(),
     val showAddDialog: Boolean = false,
     val showReduceDialog: Boolean = false,
@@ -209,6 +210,7 @@ class GoldViewModel @Inject constructor(
             todayChange = formatSigned(todayChg, m),
             todayChangePct = "${if (todayChgPct >= BigDecimal.ZERO) "+" else ""}${todayChgPct}%",
             isUp = pnl >= BigDecimal.ZERO,
+            isTodayUp = todayChg >= BigDecimal.ZERO,
             priceHistory = priceHistory
         )
     }

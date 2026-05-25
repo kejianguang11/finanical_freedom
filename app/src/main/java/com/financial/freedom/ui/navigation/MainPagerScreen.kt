@@ -104,6 +104,7 @@ fun MainPagerScreen(
     onBankClick: (String, String) -> Unit = { _, _ -> },
     onAddDeposit: () -> Unit = {},
     onAddHolding: (String) -> Unit = {},
+    onMaturedDepositsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentPage = pagerState.currentPage
@@ -146,7 +147,8 @@ fun MainPagerScreen(
                 goldClick = goldClick,
                 onBankClick = onBankClick,
                 onAddDeposit = onAddDeposit,
-                onAddHolding = onAddHolding
+                onAddHolding = onAddHolding,
+                onMaturedDepositsClick = onMaturedDepositsClick
             )
         }
     }
@@ -161,7 +163,8 @@ private fun PageContent(
     goldClick: (Long) -> Unit,
     onBankClick: (String, String) -> Unit,
     onAddDeposit: () -> Unit,
-    onAddHolding: (String) -> Unit
+    onAddHolding: (String) -> Unit,
+    onMaturedDepositsClick: () -> Unit
 ) {
     when (page) {
         PagerPage.HOME -> HomeScreen(
@@ -181,7 +184,11 @@ private fun PageContent(
             onHoldingClick = goldClick,
             onAddHolding = { onAddHolding("GOLD") }
         )
-        PagerPage.DEPOSIT -> DepositsPage(onBankClick = onBankClick, onAddDeposit = onAddDeposit)
+        PagerPage.DEPOSIT -> DepositsPage(
+            onBankClick = onBankClick,
+            onAddDeposit = onAddDeposit,
+            onMaturedDepositsClick = onMaturedDepositsClick
+        )
         PagerPage.CASH -> CashScreen()
         PagerPage.CREDIT -> CreditScreen()
         PagerPage.EARNINGS -> EarningsScreen()

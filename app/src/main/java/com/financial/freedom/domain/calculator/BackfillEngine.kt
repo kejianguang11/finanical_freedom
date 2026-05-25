@@ -187,7 +187,7 @@ class BackfillEngine @Inject constructor(
      * 处理到期存款：maturityDate <= today 且 status=active 的存款
      * → status 变为 matured → 自动生成现金流水 → status 变为 settled
      */
-    private suspend fun processDepositMaturities(asOfDate: LocalDate, accountId: Long) {
+    suspend fun processDepositMaturities(asOfDate: LocalDate, accountId: Long) {
         val activeDeposits = depositDao.getActiveList(accountId)
         for (d in activeDeposits) {
             if (d.maturityDate <= asOfDate) {

@@ -56,7 +56,6 @@ class BankDepositsViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
             }
         }
-        // multiplier 变化时重新格式化所有显示值
         viewModelScope.launch {
             displaySettings.multiplierFlow.drop(1).collect {
                 val state = _uiState.value
@@ -75,36 +74,35 @@ class BankDepositsViewModel @Inject constructor(
             val accountId = accountManager.currentAccountId.value ?: return@launch
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
-            val allDeposits = if (status == "matured") {
-                depositRepository.getInactiveList(accountId).first()
-            } else {
-                depositRepository.getActiveList(accountId)
-            }
+            val activeDeposits = depositRepository.getActiveList(accountId)
+            val inactiveDeposits = depositRepository.getInactiveList(accountId).first()
 
-            val bankDeposits = allDeposits.filter { it.bank == bankName }
+            val activeBankDeposits = activeDeposits.filter { it.bank == bankName }
+            val inactiveBankDeposits = inactiveDeposits.filter { it.bank == bankName }
+            val allBankDeposits = activeBankDeposits + inactiveBankDeposits
 
-            val deposits = bankDeposits.map { d -> toDepositDisplay(d, today) }
+            val activeDisplays = activeBankDeposits.map { d -> toDepositDisplay(d, today) }
 
-            val totalPrincipalRaw = bankDeposits.sumOf { d ->
+            val totalPrincipalRaw = activeBankDeposits.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 d.principal.multiply(rate)
             }
 
-            val totalInterestRaw = bankDeposits.sumOf { d ->
+            val totalInterestRaw = allBankDeposits.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 interestCalculator.accruedInterest(d.principal, d.interestRate, d.startDate, d.maturityDate, today)
                     .multiply(rate).setScale(2, RoundingMode.HALF_UP)
             }
 
-            val totalValueRaw = bankDeposits.sumOf { d ->
+            val totalValueRaw = activeBankDeposits.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 valuationCalculator.calcDepositValueCNY(d, rate, today)
             }
 
-            val todayInterestRaw = bankDeposits.sumOf { d ->
+            val todayInterestRaw = activeBankDeposits.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 d.principal.multiply(d.interestRate)
@@ -113,12 +111,12 @@ class BankDepositsViewModel @Inject constructor(
             }
 
             _uiState.value = _uiState.value.copy(
-                depositCount = bankDeposits.size,
+                depositCount = activeBankDeposits.size,
                 totalPrincipal = formatMoney(totalPrincipalRaw.setScale(0, RoundingMode.HALF_UP)),
                 totalInterest = formatMoney(totalInterestRaw),
                 totalCurrentValue = formatMoney(totalValueRaw),
                 todayTotalInterest = formatMoney(todayInterestRaw.abs()),
-                deposits = deposits
+                deposits = activeDisplays
             )
         }
     }
@@ -131,7 +129,6 @@ class BankDepositsViewModel @Inject constructor(
                 depositRepository.delete(deposit)
             }
             onDeleted()
-            // Reload
             load(_uiState.value.bankName, _uiState.value.status)
         }
     }
@@ -166,7 +163,8 @@ class BankDepositsViewModel @Inject constructor(
             currentValue = formatMoney(valuationCalculator.calcDepositValueCNY(d, rate, today)),
             currency = d.currency,
             todayInterest = formatMoney(dailyInterest.abs()),
-            isInterestUp = dailyInterest >= BigDecimal.ZERO
+            isInterestUp = dailyInterest >= BigDecimal.ZERO,
+            status = d.status
         )
     }
 

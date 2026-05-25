@@ -106,9 +106,12 @@ fun FundPage(
 fun DepositsPage(
     onBankClick: (String, String) -> Unit = { _, _ -> },
     onAddDeposit: () -> Unit = {},
+    onMaturedDepositsClick: () -> Unit = {},
     viewModel: HoldingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val totalMaturedCount = state.bankGroups.sumOf { it.maturedCount }
+
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
@@ -126,6 +129,17 @@ fun DepositsPage(
                         onClick = { onBankClick(group.bank, if (allMatured) "matured" else "active") }
                     )
                     Spacer(Modifier.height(12.dp))
+                }
+
+                // 已到期存单汇总入口
+                if (totalMaturedCount > 0) {
+                    item {
+                        Spacer(Modifier.height(4.dp))
+                        MaturedDepositsEntryCard(
+                            totalCount = totalMaturedCount,
+                            onClick = onMaturedDepositsClick
+                        )
+                    }
                 }
             }
             item { Spacer(Modifier.height(80.dp)) }
@@ -771,6 +785,63 @@ private fun MiniSparkline(
             if (i == 0) linePath.moveTo(x, y) else linePath.lineTo(x, y)
         }
         drawPath(linePath, lineColor, style = Stroke(width = 1.5.dp.toPx()))
+    }
+}
+
+// ===== Matured Deposits Entry Card =====
+@Composable
+private fun MaturedDepositsEntryCard(
+    totalCount: Int,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFC0392B).copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "✓",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFC0392B)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        "已到期存单",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "共 $totalCount 笔已到期 · 点击查看详情",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

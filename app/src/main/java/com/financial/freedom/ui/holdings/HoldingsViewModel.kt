@@ -45,7 +45,8 @@ data class DepositDisplay(
     val currentValue: String,
     val currency: String,
     val todayInterest: String,
-    val isInterestUp: Boolean
+    val isInterestUp: Boolean,
+    val status: String = ""
 )
 
 data class HoldingDisplay(
@@ -183,17 +184,17 @@ class HoldingsViewModel @Inject constructor(
                     depositRepository.getAll(accountId),
                     depositRepository.getInactiveList(accountId),
                     displaySettings.multiplierFlow
-                ) { active, matured, multiplier ->
+                ) { all, matured, multiplier ->
                     _uiState.value = _uiState.value.copy(displayMultiplier = multiplier)
-                    val activeDisplays = active.map { d -> toDepositDisplay(d, today) }
+                    val trulyActive = all.filter { it.status == "active" || it.status == null }
+                    val activeDisplays = trulyActive.map { d -> toDepositDisplay(d, today) }
                     val maturedDisplays = matured.map { d -> toDepositDisplay(d, today) }
-                    val allDisplays = activeDisplays + maturedDisplays
                     _uiState.value = _uiState.value.copy(
                         deposits = activeDisplays,
                         maturedDeposits = maturedDisplays,
-                        bankGroups = toMergedBankGroupList(active, matured, today),
-                        depositTotalValue = computeDepositCategoryValue(allDisplays),
-                        depositTodayInterest = computeDepositInterestSum(active, today)
+                        bankGroups = toMergedBankGroupList(trulyActive, matured, today),
+                        depositTotalValue = computeDepositCategoryValue(activeDisplays),
+                        depositTodayInterest = computeDepositInterestSum(trulyActive, today)
                     )
                 }.collect { }
             }
@@ -292,19 +293,20 @@ class HoldingsViewModel @Inject constructor(
             val activeInBank = allDeposits.filter { it.status == "active" || it.status == null }
             val maturedInBank = allDeposits.filter { it.status == "matured" || it.status == "settled" }
 
-            val totalPrincipalRaw = allDeposits.sumOf { d ->
+            // 汇总只算活跃存单（与 BankDepositsViewModel 保持一致）
+            val totalPrincipalRaw = activeInBank.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 d.principal.multiply(rate)
             }
-            val totalInterestRaw = activeInBank.sumOf { d ->
+            val totalInterestRaw = allDeposits.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 val dailyInterest = d.principal.multiply(d.interestRate)
                     .divide(BigDecimal(365), 6, RoundingMode.HALF_UP)
                 dailyInterest.multiply(rate)
             }
-            val totalValueRaw = allDeposits.sumOf { d ->
+            val totalValueRaw = activeInBank.sumOf { d ->
                 val rate = if (d.currency == "CNY") BigDecimal.ONE
                 else exchangeRateRepository.getRate(d.currency, "CNY", today) ?: BigDecimal.ONE
                 valuationCalculator.calcDepositValueCNY(d, rate, today)
@@ -581,7 +583,8 @@ class HoldingsViewModel @Inject constructor(
             currentValue = formatMoney(valuationCalculator.calcDepositValueCNY(d, rate, today)),
             currency = d.currency,
             todayInterest = formatSigned(dailyInterest),
-            isInterestUp = dailyInterest >= BigDecimal.ZERO
+            isInterestUp = dailyInterest >= BigDecimal.ZERO,
+            status = d.status
         )
     }
 

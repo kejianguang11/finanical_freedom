@@ -1592,3 +1592,48 @@
 
 ### 32.6 提交 GitHub
 - [ ] `git add` + `git commit` + `git push`
+
+---
+
+## 阶段 33：存款到期处理增强 & 已到期存单入口 & 黄金颜色修复（2026-05-25）
+
+> 依赖：阶段 0-32 全部完成
+> 执行顺序：33.1 → 33.2 → 33.3 → 33.4
+
+### 33.1 黄金今日涨跌颜色修复
+
+- [ ] `GoldViewModel.kt`：`GoldUiState` 新增 `isTodayUp: Boolean` 字段，基于 `todayChg >= 0`
+- [ ] `GoldViewModel.kt`：`render()` 中设置 `isTodayUp = todayChg >= BigDecimal.ZERO`
+- [ ] `GoldScreen.kt:261`：今日变动颜色改用 `state.isTodayUp`
+- [ ] `GoldDetailScreen.kt:192`：当前价格旁今日变动颜色改用 `state.isTodayUp`
+- [ ] `GoldDetailScreen.kt:308,313`：今日盈亏卡片颜色改用 `state.isTodayUp`
+
+### 33.2 存款到期处理启动时强制检查
+
+- [ ] `BackfillEngine.kt`：抽取 `processDepositMaturities` 为独立公开方法
+- [ ] `HomeViewModel.kt`：`init` 中调用 `backfillEngine.processDepositMaturities(today, accountId)` 确保每次启动都检查到期存款
+- [ ] 确认到期存款不再出现在首页资产中
+
+### 33.3 银行详情页分区展示（活跃 + 已到期）
+
+- [ ] `BankDepositsViewModel.kt`：`load()` 改为同时加载活跃和已到期存单，不根据 status 参数过滤
+- [ ] `BankDepositsScreen.kt`：存单列表分区展示——上面"进行中"（活跃），下面"已到期"（半透明 + badge）
+- [ ] `HoldingsPages.kt`：银行组卡片点击改为传 `status=""` 或移除 status 参数
+
+### 33.4 存款页「已到期存单」汇总入口
+
+- [ ] `HoldingsPages.kt`：`DepositsPage` 底部新增「已到期存单」卡片（当有已到期存单时显示）
+- [ ] 卡片显示：灰色图标 + "已到期存单" + 笔数 + 本金合计 + 本息合计
+- [ ] 点击 → 导航至 `MaturedDepositsScreen`（新页面，按银行分组展示全部已到期存单）
+- [ ] 新建 `MaturedDepositsScreen.kt` + 对应 ViewModel
+- [ ] `Route.kt`：新增 `MaturedDeposits` 路由
+- [ ] `AppNavigation.kt`：注册路由 + 导航逻辑
+
+### 33.5 编译安装验证
+
+- [ ] `./gradlew assembleDebug` 编译通过
+- [ ] 安装到设备验证：黄金今日涨跌颜色正确
+- [ ] 安装到设备验证：到期存款不显示在首页资产中
+- [ ] 安装到设备验证：银行详情页同时显示活跃和已到期存单
+- [ ] 安装到设备验证：存款页底部「已到期存单」入口卡片 + 点击进入
+- [ ] 提交 GitHub
