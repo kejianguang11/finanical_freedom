@@ -241,14 +241,12 @@ class EarningsViewModel @Inject constructor(
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
         val firstDay = LocalDate(month.year, month.monthNumber, 1)
-        val lastDay = if (month.year == today.year && month.monthNumber == today.monthNumber) today
-        else firstDay.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
+        val lastDay = firstDay.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
 
         val breakdowns = summaryRepository.getBreakdownsByDateRange(firstDay, lastDay, accountId)
             .groupBy { it.date }
 
-        val dayOfWeek = firstDay.dayOfWeek
-        val daysInPrevMonth = (dayOfWeek.ordinal + 6) % 7
+        val daysInPrevMonth = firstDay.dayOfWeek.ordinal
 
         val days = mutableListOf<DayEarning>()
 

@@ -23,6 +23,9 @@ interface DailySummaryDao {
     @Query("SELECT MAX(date) FROM daily_summaries WHERE accountId = :accountId")
     suspend fun getLatestDate(accountId: Long): LocalDate?
 
+    @Query("SELECT MAX(date) FROM daily_summaries WHERE accountId = :accountId AND date < :beforeDate")
+    suspend fun getLatestDateBefore(beforeDate: LocalDate, accountId: Long): LocalDate?
+
     @Query("SELECT MIN(date) FROM daily_summaries WHERE accountId = :accountId")
     suspend fun getEarliestDate(accountId: Long): LocalDate?
 

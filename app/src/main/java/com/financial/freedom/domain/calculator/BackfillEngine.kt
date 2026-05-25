@@ -23,6 +23,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
+import kotlinx.datetime.until
 import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
@@ -56,8 +57,14 @@ class BackfillEngine @Inject constructor(
         Log.w(TAG, "backfillIfNeeded called, today=$today, lastDate=$lastDate, count=$count, accountId=$accountId")
 
         if (lastDate != null && lastDate >= today && count >= 5) {
-            Log.w(TAG, "Backfill not needed")
-            return
+            // refreshData 在 backfill 之前插入了今日数据，需验证数据连续性
+            val yesterday = today.minus(1, DateTimeUnit.DAY)
+            val yesterdayExists = summaryDao.getByDate(yesterday, accountId) != null
+            if (yesterdayExists) {
+                Log.w(TAG, "Backfill not needed")
+                return
+            }
+            Log.w(TAG, "Gap detected: yesterday missing despite lastDate=$lastDate, forcing backfill")
         }
 
         if (count < 5) {
@@ -73,7 +80,10 @@ class BackfillEngine @Inject constructor(
             Log.w(TAG, "deposits=${deposits.size}, holdings=${holdings.size}, depositMin=$depositMin, holdingMin=$holdingMin")
             minOfNotNull(depositMin, holdingMin) ?: today
         } else {
-            lastDate
+            // 数据断层时从昨天的真实最后日期开始回填，而非从今天
+            val realLastDate = summaryDao.getLatestDateBefore(today, accountId) ?: lastDate
+            Log.w(TAG, "Partial backfill from realLastDate=$realLastDate")
+            realLastDate
         }
 
         Log.w(TAG, "Backfilling from $startDate to $today")
