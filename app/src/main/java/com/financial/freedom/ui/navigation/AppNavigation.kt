@@ -1,15 +1,19 @@
 package com.financial.freedom.ui.navigation
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.financial.freedom.domain.account.AccountManager
+import com.financial.freedom.domain.account.LockManager
 import com.financial.freedom.ui.auth.AccountListScreen
 import com.financial.freedom.ui.auth.PinUnlockScreen
 import com.financial.freedom.ui.auth.WelcomeScreen
@@ -49,11 +53,20 @@ fun AppNavHost(
         }
 
         composable<Route.PinUnlock> {
+            val context = LocalContext.current
+            BackHandler {
+                (context as? Activity)?.moveTaskToBack(true)
+            }
             PinUnlockScreen(
                 accountManager = accountManager,
                 onUnlocked = {
-                    navController.navigate(Route.Main) {
-                        popUpTo(Route.PinUnlock) { inclusive = true }
+                    LockManager.unlock()
+                    if (navController.previousBackStackEntry?.destination?.route == Route.Main::class.qualifiedName) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Route.Main) {
+                            popUpTo(Route.PinUnlock) { inclusive = true }
+                        }
                     }
                 },
                 onSwitchAccount = { navController.navigate(Route.AccountList) },

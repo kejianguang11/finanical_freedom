@@ -1,9 +1,12 @@
 package com.financial.freedom
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -37,8 +40,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.collectAsState
 import com.financial.freedom.data.DefaultDataSeeder
 import com.financial.freedom.domain.account.AccountManager
+import com.financial.freedom.domain.account.LockManager
 import com.financial.freedom.ui.navigation.AppNavHost
 import com.financial.freedom.ui.navigation.PagerPage
 import com.financial.freedom.ui.navigation.Route
@@ -99,62 +104,82 @@ fun FinancialFreedomApp(accountManager: AccountManager, defaultDataSeeder: Defau
         val showBottomBar = isMainOrSub
         val showFab = matchesAny(currentRoute, mainRoutes)
 
-        Scaffold(
-            bottomBar = {
-                if (showBottomBar) {
-                    NavigationBar {
-                        bottomNavItems.forEachIndexed { index, item ->
-                            val selected = bottomNavIndexFor(currentPage) == index
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = {
-                                    if (isSubRoute) {
-                                        navController.popBackStack(Route.Main, inclusive = false)
-                                    }
-                                    val anchor = PagerPage.anchorFor(item.label)
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(anchor)
-                                    }
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                                        contentDescription = item.label,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        text = item.label,
-                                        textAlign = TextAlign.Center,
-                                        fontSize = 11.sp
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                            )
+        // Re-lock when app goes to background
+        val isLocked by LockManager.isLocked.collectAsState()
+        LaunchedEffect(isLocked) {
+            if (isLocked && !isAuth) {
+                navController.navigate(Route.PinUnlock)
+            }
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                bottomBar = {
+                    if (showBottomBar) {
+                        NavigationBar {
+                            bottomNavItems.forEachIndexed { index, item ->
+                                val selected = bottomNavIndexFor(currentPage) == index
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = {
+                                        if (isSubRoute) {
+                                            navController.popBackStack(Route.Main, inclusive = false)
+                                        }
+                                        val anchor = PagerPage.anchorFor(item.label)
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(anchor)
+                                        }
+                                    },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                            contentDescription = item.label,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = item.label,
+                                            textAlign = TextAlign.Center,
+                                            fontSize = 11.sp
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                floatingActionButton = {
+                    if (showFab) {
+                        FloatingActionButton(
+                            onClick = { showAddSheet = true },
+                            containerColor = FinancialColors.gold
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = "新增资产")
                         }
                     }
                 }
-            },
-            floatingActionButton = {
-                if (showFab) {
-                    FloatingActionButton(
-                        onClick = { showAddSheet = true },
-                        containerColor = FinancialColors.gold
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = "新增资产")
-                    }
+            ) { innerPadding ->
+                startDest?.let { dest ->
+                    AppNavHost(
+                        navController = navController,
+                        accountManager = accountManager,
+                        startDestination = dest,
+                        pagerState = pagerState,
+                        onPageChanged = { page -> currentPage = page },
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
             }
-        ) { innerPadding ->
-            startDest?.let { dest ->
-                AppNavHost(
-                    navController = navController,
-                    accountManager = accountManager,
-                    startDestination = dest,
-                    pagerState = pagerState,
-                    onPageChanged = { page -> currentPage = page },
-                    modifier = Modifier.padding(innerPadding)
+
+            // Opaque overlay to prevent content flash when re-locking
+            // LockManager.isLocked.value read synchronously as fallback for first frame after resume
+            if ((isLocked || LockManager.isLocked.value) && !isAuth) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
                 )
             }
         }
