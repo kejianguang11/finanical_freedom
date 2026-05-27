@@ -18,15 +18,18 @@ import com.financial.freedom.data.local.entity.PriceSnapshot
 import com.financial.freedom.data.remote.PriceService
 import com.financial.freedom.data.repository.CashRepository
 import com.financial.freedom.data.repository.DebtRepository
+import com.financial.freedom.data.repository.InsuranceRepository
 import com.financial.freedom.data.repository.ReceivableRepository
 import com.financial.freedom.data.repository.SummaryRepository
 import com.financial.freedom.domain.account.AccountManager
 import com.financial.freedom.domain.calculator.BackfillEngine
 import com.financial.freedom.domain.calculator.DataVerifier
+import com.financial.freedom.domain.calculator.InsuranceCalculator
 import com.financial.freedom.domain.calculator.InterestCalculator
 import com.financial.freedom.domain.calculator.ValuationCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +60,8 @@ data class HomeUiState(
     val fundChange: String = "+0.00",
     val goldValue: String = "--,--",
     val goldChange: String = "+0.00",
+    val insuranceValue: String = "--,--",
+    val insuranceChange: String = "+0.00",
     val cashBalance: String = "0",
     val receivablesTotal: String = "0",
     val debtsTotal: String = "0",
@@ -103,6 +108,8 @@ class HomeViewModel @Inject constructor(
     private val cashRepository: CashRepository,
     private val receivableRepository: ReceivableRepository,
     private val debtRepository: DebtRepository,
+    private val insuranceRepository: InsuranceRepository,
+    private val insuranceCalculator: InsuranceCalculator,
     private val accountManager: AccountManager,
     @ApplicationContext private val context: Context,
     private val displaySettings: com.financial.freedom.domain.settings.DisplaySettings,
@@ -138,7 +145,7 @@ class HomeViewModel @Inject constructor(
             Log.d("HomeVM", "init fast path start")
 
             // 0. 检查数据版本：计算逻辑变更时强制全量回填
-            val dataVersionCurrent = 3  // v3: force gold earnings backfill with Sina AU0 history API
+            val dataVersionCurrent = 4  // v4: isolate FX from asset changes, use same-day rate for yesterday valuation
             val prefs = context.getSharedPreferences("account_prefs", Context.MODE_PRIVATE)
             val dataVersionStored = prefs.getInt("data_version", 0)
             val needsDataMigration = dataVersionStored < dataVersionCurrent
@@ -157,7 +164,7 @@ class HomeViewModel @Inject constructor(
             try {
                 Log.d("HomeVM", "starting backfill on IO...")
                 val backfillStart = System.currentTimeMillis()
-                withContext(Dispatchers.IO) {
+                withContext(NonCancellable + Dispatchers.IO) {
                     if (symbolsFixed || needsDataMigration) {
                         // 修正了错误代码或数据版本升级后强制全量回填，不能用 backfillIfNeeded
                         // 因为 refreshData 可能已插入占位 summary 导致 backfillIfNeeded 跳过
@@ -288,6 +295,12 @@ class HomeViewModel @Inject constructor(
 
         for (h in holdings) {
             try {
+                // 若今日已有快照则跳过，避免多次 API 调用返回不同价格导致页面不一致
+                val existingToday = priceSnapshotDao.getByHoldingAndDate(h.id, today, accountId)
+                if (existingToday != null) {
+                    Log.d("HomeVM", "Skip ${h.symbol}: today snapshot already exists")
+                    continue
+                }
                 Log.d("HomeVM", "Fetching ${h.type} ${h.symbol}...")
                 val result = priceService.fetchPrice(h.type, h.symbol, h.market, today)
                 if (result != null) {
@@ -388,7 +401,20 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        val totalCNY = depositTotal + stockTotal + fundTotal + goldTotal
+        // Insurance cash values
+        val insurances = withContext(Dispatchers.IO) { insuranceRepository.getAllList(accountId) }
+            .filter { it.status != "surrendered" }
+        var insuranceTotal = BigDecimal.ZERO
+        var insuranceTodayInterest = BigDecimal.ZERO
+        for (ins in insurances) {
+            val cv = insuranceCalculator.calcCashValue(ins, asOfDate)
+                ?: ins.currentCashValue ?: BigDecimal.ZERO
+            insuranceTotal += cv
+            insuranceTodayInterest += insuranceCalculator.dailyGrowth(cv, ins.growthRate)
+        }
+        insuranceTodayInterest = insuranceTodayInterest.setScale(2, RoundingMode.HALF_UP)
+
+        val totalCNY = depositTotal + stockTotal + fundTotal + goldTotal + insuranceTotal
 
         // 计算当日净入金（新增存款本金 + 股票买入成本），不计入收益率
         var netInflow = BigDecimal.ZERO
@@ -480,8 +506,8 @@ class HomeViewModel @Inject constructor(
         val dbtTotalNw = debtRepository.getTotal(accountId)
         val netWorth = totalCNY.add(cashBal).add(rcvTotalNw).subtract(dbtTotalNw)
 
-        // 今日收益 = 4 个可见分类变动之和（不含 FX 残差）
-        val displayDayChange = directDepositChange + stockChange + fundChange + goldChange
+        // 今日收益 = 5 个可见分类变动之和（不含 FX 残差）
+        val displayDayChange = directDepositChange + stockChange + fundChange + goldChange + insuranceTodayInterest
         val displayDayChangePct = if (totalCNY > BigDecimal.ZERO) {
             displayDayChange.divide(totalCNY, 6, RoundingMode.HALF_UP)
                 .multiply(BigDecimal(100)).setScale(2, RoundingMode.HALF_UP)
@@ -504,6 +530,8 @@ class HomeViewModel @Inject constructor(
             fundChange = formatSignedChange(fundChange),
             goldValue = formatMoney(goldTotal),
             goldChange = formatSignedChange(goldChange),
+            insuranceValue = formatMoney(insuranceTotal),
+            insuranceChange = formatSignedChange(insuranceTodayInterest),
             cashBalance = formatMoney(cashBal),
             receivablesTotal = formatMoney(rcvTotalNw),
             debtsTotal = formatMoney(dbtTotalNw),
@@ -516,7 +544,7 @@ class HomeViewModel @Inject constructor(
             consecutiveUpDays = streak,
             monthOverMonthChange = momChange,
             monthOverMonthPct = momPct,
-            isEmpty = deposits.isEmpty() && holdings.isEmpty()
+            isEmpty = deposits.isEmpty() && holdings.isEmpty() && insurances.isEmpty()
         )
 
         // Persist today's summary to DB
@@ -529,7 +557,8 @@ class HomeViewModel @Inject constructor(
             DailyBreakdownItem(date = asOfDate, type = "DEPOSIT", valueCNY = depositTotal, changeCNY = directDepositChange, contribution = netInflow, accountId = accountId),
             DailyBreakdownItem(date = asOfDate, type = "STOCK", valueCNY = stockTotal, changeCNY = stockChange, accountId = accountId),
             DailyBreakdownItem(date = asOfDate, type = "FUND", valueCNY = fundTotal, changeCNY = fundChange, accountId = accountId),
-            DailyBreakdownItem(date = asOfDate, type = "GOLD", valueCNY = goldTotal, changeCNY = goldChange, accountId = accountId)
+            DailyBreakdownItem(date = asOfDate, type = "GOLD", valueCNY = goldTotal, changeCNY = goldChange, accountId = accountId),
+            DailyBreakdownItem(date = asOfDate, type = "INSURANCE", valueCNY = insuranceTotal, changeCNY = insuranceTodayInterest, accountId = accountId)
         )
         if (fxResidual.abs() > BigDecimal.ZERO) {
             breakdowns += DailyBreakdownItem(date = asOfDate, type = "FX", valueCNY = BigDecimal.ZERO, changeCNY = fxResidual, accountId = accountId)

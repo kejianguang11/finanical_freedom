@@ -44,6 +44,7 @@ import com.financial.freedom.ui.holdings.GoldPage
 import com.financial.freedom.ui.holdings.HoldingsUiState
 import com.financial.freedom.ui.holdings.HoldingsViewModel
 import com.financial.freedom.ui.holdings.StockPage
+import com.financial.freedom.ui.insurance.InsurancePage
 import com.financial.freedom.ui.home.HomeScreen
 import com.financial.freedom.ui.settings.SettingsScreen
 import com.financial.freedom.ui.theme.FinancialColors
@@ -53,9 +54,9 @@ import kotlinx.coroutines.launch
 enum class PagerPage(val index: Int) {
     HOME(0),
     STOCK(1), FUND(2), GOLD(3),
-    DEPOSIT(4),
-    CASH(5), CREDIT(6),
-    EARNINGS(7), SETTINGS(8);
+    DEPOSIT(4), INSURANCE(5),
+    CASH(6), CREDIT(7),
+    EARNINGS(8), SETTINGS(9);
 
     companion object {
         fun fromIndex(index: Int): PagerPage = entries.first { it.index == index }
@@ -74,9 +75,9 @@ enum class PagerPage(val index: Int) {
 /** Which bottom nav item is highlighted for a given page */
 fun bottomNavIndexFor(page: Int): Int = when (page) {
     0 -> 0             // 首页
-    in 1..6 -> 1       // 持仓 (投资+存款+现金+信用)
-    7 -> 2             // 收益
-    8 -> 3             // 设置
+    in 1..7 -> 1       // 持仓 (投资+存款+保险+现金+信用)
+    8 -> 2             // 收益
+    9 -> 3             // 设置
     else -> 0
 }
 
@@ -91,8 +92,9 @@ private data class CategoryChip(
 private val categories = listOf(
     CategoryChip("投资", 1, 1..3),
     CategoryChip("存款", 4, 4..4),
-    CategoryChip("现金", 5, 5..5),
-    CategoryChip("信用", 6, 6..6)
+    CategoryChip("保险", 5, 5..5),
+    CategoryChip("现金", 6, 6..6),
+    CategoryChip("信用", 7, 7..7)
 )
 
 @Composable
@@ -105,6 +107,8 @@ fun MainPagerScreen(
     onAddDeposit: () -> Unit = {},
     onAddHolding: (String) -> Unit = {},
     onMaturedDepositsClick: () -> Unit = {},
+    onInsuranceClick: (Long) -> Unit = {},
+    onAddInsurance: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentPage = pagerState.currentPage
@@ -113,7 +117,7 @@ fun MainPagerScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         // Category quick-jump strip — pages 1-6 only
-        if (currentPage in 1..6) {
+        if (currentPage in 1..7) {
             CategoryNavStrip(
                 currentPage = currentPage,
                 holdingsState = holdingsState,
@@ -137,7 +141,7 @@ fun MainPagerScreen(
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
-            beyondViewportPageCount = 0
+            beyondViewportPageCount = 1
         ) { page ->
             PageContent(
                 page = PagerPage.fromIndex(page),
@@ -148,7 +152,9 @@ fun MainPagerScreen(
                 onBankClick = onBankClick,
                 onAddDeposit = onAddDeposit,
                 onAddHolding = onAddHolding,
-                onMaturedDepositsClick = onMaturedDepositsClick
+                onMaturedDepositsClick = onMaturedDepositsClick,
+                onInsuranceClick = onInsuranceClick,
+                onAddInsurance = onAddInsurance
             )
         }
     }
@@ -164,7 +170,9 @@ private fun PageContent(
     onBankClick: (String, String) -> Unit,
     onAddDeposit: () -> Unit,
     onAddHolding: (String) -> Unit,
-    onMaturedDepositsClick: () -> Unit
+    onMaturedDepositsClick: () -> Unit,
+    onInsuranceClick: (Long) -> Unit,
+    onAddInsurance: () -> Unit
 ) {
     when (page) {
         PagerPage.HOME -> HomeScreen(
@@ -188,6 +196,10 @@ private fun PageContent(
             onBankClick = onBankClick,
             onAddDeposit = onAddDeposit,
             onMaturedDepositsClick = onMaturedDepositsClick
+        )
+        PagerPage.INSURANCE -> InsurancePage(
+            onInsuranceClick = onInsuranceClick,
+            onAddInsurance = onAddInsurance
         )
         PagerPage.CASH -> CashScreen()
         PagerPage.CREDIT -> CreditScreen()
@@ -278,12 +290,18 @@ private fun CategoryNavStrip(
                     todayColor = FinancialColors.up
                 }
                 currentPage == 5 -> {
+                    summaryLabel = "保险总计"
+                    summaryValue = "¥${holdingsState.insuranceTotalValue}"
+                    summaryToday = holdingsState.insuranceTodayInterest
+                    todayColor = FinancialColors.up
+                }
+                currentPage == 6 -> {
                     summaryLabel = "现金余额"
-                    summaryValue = ""  // cash managed separately
+                    summaryValue = ""
                     summaryToday = ""
                     todayColor = MaterialTheme.colorScheme.onSurface
                 }
-                currentPage == 6 -> {
+                currentPage == 7 -> {
                     summaryLabel = "净借出"
                     summaryValue = ""
                     summaryToday = ""

@@ -96,7 +96,7 @@ class GoldViewModel @Inject constructor(
         viewModelScope.launch {
             val accountId = accountManager.currentAccountId.value ?: return@launch
 
-            // 监听黄金 Holding 变化
+            // 监听黄金 Holding 变化（首次加载 + 持仓变更时触发网络拉取）
             combine(
                 holdingDao.getByType("GOLD", accountId),
                 displaySettings.multiplierFlow
@@ -110,6 +110,18 @@ class GoldViewModel @Inject constructor(
                 }
             }
         }
+        // 监听价格快照变化：当其他 VM（如详情页）更新价格后，列表页自动刷新
+        viewModelScope.launch {
+            val accountId = accountManager.currentAccountId.value ?: return@launch
+            holdingDao.getByType("GOLD", accountId).collect { holdings ->
+                val holding = holdings.firstOrNull() ?: return@collect
+                priceSnapshotDao.observeLatest(holding.id, accountId).collect {
+                    if (it != null && _uiState.value.holding != null) {
+                        renderFromDb(_uiState.value.holding!!, accountId)
+                    }
+                }
+            }
+        }
     }
 
     private suspend fun fetchTransactionsAndRender(holding: Holding, accountId: Long) {
@@ -119,25 +131,29 @@ class GoldViewModel @Inject constructor(
         val txs = transactionDao.getByHoldingList(holding.id, accountId)
         render(holding, txs, accountId, today)
 
-        // 后台拉取最新价格
+        // 后台拉取最新价格（若今日已有快照则不重复拉取，避免多次 API 调用返回不同价格导致不一致）
         withContext(Dispatchers.IO) {
             try {
-                val result = priceService.fetchPrice("GOLD", "XAU", "", today)
-                if (result != null) {
-                    priceSnapshotDao.insert(
-                        PriceSnapshot(
-                            holdingId = holding.id, date = result.date, unitPrice = result.price,
-                            currency = result.currency, accountId = accountId
+                val existingToday = priceSnapshotDao.getByHoldingAndDate(holding.id, today, accountId)
+                if (existingToday == null) {
+                    val result = priceService.fetchPrice("GOLD", "XAU", "", today)
+                    if (result != null) {
+                        priceSnapshotDao.insert(
+                            PriceSnapshot(
+                                holdingId = holding.id, date = result.date, unitPrice = result.price,
+                                currency = result.currency, accountId = accountId
+                            )
                         )
-                    )
+                    }
                 }
                 // 补齐历史价格（按当前时间范围），含回填确保日收益数据包含黄金估值
+                // 排除 today，避免历史数据（来自不同数据源如 AU0 期货）覆盖当日实时价
                 val rangeDays = _uiState.value.chartTimeRange.days
                 val rangeStart = today.minus(rangeDays, DateTimeUnit.DAY)
                 val history = priceService.fetchHistory("GOLD", "XAU", "", rangeStart, today)
                 if (history.isNotEmpty()) {
                     priceSnapshotDao.insertAll(
-                        history.map { r ->
+                        history.filter { it.date != today }.map { r ->
                             PriceSnapshot(
                                 holdingId = holding.id, date = r.date, unitPrice = r.price,
                                 currency = r.currency, accountId = accountId
@@ -154,6 +170,13 @@ class GoldViewModel @Inject constructor(
         // 用最新数据重新渲染
         val updatedTxs = transactionDao.getByHoldingList(holding.id, accountId)
         render(holding, updatedTxs, accountId, today)
+    }
+
+    /** 仅从本地 DB 渲染，不触发网络拉取（用于 price snapshot 变更时刷新） */
+    private suspend fun renderFromDb(holding: Holding, accountId: Long) {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val txs = transactionDao.getByHoldingList(holding.id, accountId)
+        render(holding, txs, accountId, today)
     }
 
     private suspend fun render(
@@ -421,11 +444,12 @@ class GoldViewModel @Inject constructor(
             priceSnapshotDao.deleteByHoldingId(holding.id, accountId)
             transactionDao.deleteByHoldingId(holding.id, accountId)
             holdingDao.delete(holding)
+            _uiState.value = _uiState.value.copy(showDeleteAllDialog = false)
+            onDeleted()
+            // 回填放到后台执行，不阻塞导航
             withContext(Dispatchers.IO) {
                 backfillEngine.markDirtyAndBackfill(costDate, accountId)
             }
-            _uiState.value = _uiState.value.copy(showDeleteAllDialog = false)
-            onDeleted()
         }
     }
 
